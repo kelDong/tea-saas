@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.teasaas</groupId>
+        <artifactId>tea-saas-backend</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>tea-order</artifactId>
+    <name>tea-order</name>
+    <description>订单模块：状态机/下单扣库存/门店收银</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-product</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-inventory</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

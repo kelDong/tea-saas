@@ -1,0 +1,38 @@
+# ===== Maven =====
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ===== IDE =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# ===== 日志/临时 =====
+logs/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ===== 环境配置（含密钥，禁止入库）=====
+application-local.yml
+application-dev.yml
+application-prod.yml
+*.local.properties
+.env
+
+# ===== 前端/小程序（同级目录）=====
+node_modules/
+dist/
+unpackage/
+.hbuilderx/
+
+# ===== 测试产物 =====
+test-output/
+coverage/
+*.hprof
