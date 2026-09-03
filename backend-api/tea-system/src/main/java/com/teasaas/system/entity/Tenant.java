@@ -17,7 +17,7 @@ public class Tenant implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.INPUT)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     private String tenantCode;
