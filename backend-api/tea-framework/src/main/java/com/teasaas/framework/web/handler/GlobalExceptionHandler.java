@@ -1,5 +1,6 @@
 package com.teasaas.framework.web.handler;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.Result;
@@ -33,6 +34,13 @@ public class GlobalExceptionHandler {
             message = ex.getBindingResult().getFieldError().getDefaultMessage();
         }
         return Result.error(ErrorCode.PARAM_ERROR, message);
+    }
+
+    /** 未登录/会话过期（Sa-Token 拦截）：HTTP 401 + 业务码 2，前端据此跳登录页 */
+    @ExceptionHandler(NotLoginException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleNotLogin(NotLoginException e) {
+        return Result.error(ErrorCode.UNAUTHORIZED);
     }
 
     /** 系统异常：兜底，不泄露堆栈 */
