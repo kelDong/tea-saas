@@ -34,6 +34,7 @@
         <module>tea-report</module>
         <module>tea-job</module>
         <module>tea-server</module>
+        <module>tea-generator</module>
     </modules>
 
     <properties>

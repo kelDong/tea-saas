@@ -12,7 +12,7 @@ f6fe6fe feat(system): SQL初始化脚本——39张表DDL+种子数据 F-SYS-01/
 33c7c84 feat(framework): M2地基搭建——15模块骨架+多租户插件+统一返回/异常体系
 ```
 
-未提交内容：`tea-generator/pom.xml`（新建，见 §3 进行中）、`CLAUDE.md`、本文件。
+未提交内容：`CLAUDE.md`（本地有改动，属 Owner 手笔，由 Owner 决定何时提交）。
 
 ## 2. M2 进度（对照飞书任务清单）
 
@@ -21,26 +21,20 @@ f6fe6fe feat(system): SQL初始化脚本——39张表DDL+种子数据 F-SYS-01/
 | Maven 15 模块骨架 | ✅ 已提交 | （未单独建任务） |
 | SQL 初始化（39 表） | ✅ 已提交 | t100007 ✅ |
 | tea-system（登录/RBAC/用户/角色/日志/密码Runner） | ✅ 已提交 | t100001 ✅ |
-| **代码生成器** | 🔨 **进行到一半（见 §3）** | t100008 ⬜ |
-| admin-web 前端骨架 | ⬜ 未开始 | t100009 ⬜ |
+| **代码生成器** | ✅ 已完成（见 §3） | t100008 |
+| admin-web 前端骨架 | ⬜ 未开始（M2 最后一步） | t100009 ⬜ |
 | 并行：种子访谈 + 微信资质 | ⬜ Owner 侧（提醒） | t100010/t100011 |
 
-## 3. 进行到一半：代码生成器（tea-generator）
+## 3. 已完成：代码生成器（tea-generator）✅
 
-**已完成**：
-- `tea-generator/pom.xml` 已创建（依赖 tea-framework + lombok）
-- 设计已定：解析 `sql/init/01_schema.sql` 的 DDL → 离线生成四件套（Entity/Mapper/Service/Controller）
-  - 表前缀路由模块：`sys_/tenant→tea-system`、`fra_→tea-franchise`、`sup_→tea-supply`、`bom_→tea-bom`、`prd_→tea-product`、`inv_→tea-inventory`、`ord_→tea-order`、`pay_→tea-payment`、`mem_→tea-member`、`mkt_→tea-marketing`
-  - 类型映射：bigint→Long、varchar→String、int→Integer、tinyint→Integer、decimal→BigDecimal、datetime→LocalDateTime、date→LocalDate、time→LocalTime、json→String
-  - 通用字段全含的表（tenant_id+create_by+create_time+update_by+update_time+del_flag）→ 继承 `BaseEntity` 并只生成业务字段
-  - **已存在的输出文件跳过**（不覆盖手写代码，如 SysUser 系列）
-  - Controller 模板：Result<T> + 分页 + @Validated + OpenAPI 注解 + @OpLog
-
-**未完成**：
-- 父 POM `modules` 列表**尚未加入** `<module>tea-generator</module>`（pom 已建但未挂载——先补这个）
-- 生成器代码未写（建议结构：`CodeGenerator`（main）+ `TableMeta`/`ColumnMeta` + 模板渲染；输入参数：DDL 路径/输出根/表名过滤）
-- 未跑验证（计划：先对 BOM 模块 3 张表 bom_material/bom_formula/bom_formula_item 生成并编译验证）
-- 工程规范第 14 章 = 生成器产物要求（禁 TODO 占位、生成后人工 review）
+- 纯 JDK 零依赖（JUL 日志，规避 pre-commit 的 System.out.println 禁令），`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=bom_*` 直接运行
+- 结构：`CodeGenerator`（main/写入/跳过已存在）+ `core`（SqlDdlParser/TableMeta/ColumnMeta/TypeMapping/ModuleRouter/NameUtil）+ `render/Templates`
+- 表前缀路由：`sys_/tenant→tea-system`、`fra_→tea-franchise`、`sup_→tea-supply`、`bom_→tea-bom`、`prd_→tea-product`、`inv_→tea-inventory`、`ord_→tea-order`、`pay_→tea-payment`、`mem_→tea-member`、`mkt_→tea-marketing`
+- 类型映射：bigint→Long、varchar→String、int/tinyint→Integer、decimal→BigDecimal、datetime→LocalDateTime、date→LocalDate、time→LocalTime、json→String
+- 通用字段全含的表继承 `BaseEntity`（如 bom_material/bom_formula）；关联/流水表平铺（如 bom_formula_item，含 tenant_id/create_time 显式赋值）
+- 已验证：BOM 三表 18 文件生成 + 全量 `mvn compile` 通过；`--tables=sys_user` 验证跳过逻辑（5 个已有文件被保护）
+- 注意：DDL 表级注释是 `COMMENT='x'`（带等号）、列级是 `COMMENT 'x'`（带空格），解析正则已兼容两者
+- 规范 14 的"基础单测骨架"暂不生成（模块无 test 依赖设施，M3 随业务逻辑补）
 
 ## 4. 关键实现事实（接手者容易踩的坑）
 
