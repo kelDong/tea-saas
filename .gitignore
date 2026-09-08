@@ -1,0 +1,25 @@
+# ===== 密钥/凭据（禁止入库）=====
+tools/feishu.config.json
+*.env
+.env
+
+# ===== IDE / AI 工具 =====
+.idea/
+.claude/settings.local.json
+.vscode/
+
+# ===== 前端 =====
+node_modules/
+dist/
+*.local
+
+# ===== 日志/临时 =====
+logs/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ===== Java =====
+target/
+*.class
