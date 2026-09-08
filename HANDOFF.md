@@ -55,7 +55,7 @@
 3. **飞书同步**：`E:\DeepSeekHarness\tools\feishu-task.ps1`（create/complete/list，PS5.1 兼容版）；本地映射 `tools/feishu-tasks.json`；凭据在 `tools/feishu.config.json`（**禁止提交**）
 4. **pre-commit hook**：`tea-saas/.git/hooks/pre-commit`（克隆仓库需重装；内容可从本仓库 hook 或 `.harness/skills/code-review-commit/SKILL.md` 恢复）
 5. **admin 密码**：首次部署设 `TEA_ADMIN_PASSWORD` 环境变量启动，自动替换 SQL 占位哈希（AdminPasswordInitRunner）
-6. **MySQL 已就绪（2026-09-08）/ Redis 仍无**：MySQL 8.0.28 装在 `E:\mysql80`（**端口 3307**，root/root），`tea_saas` 库 39 表+种子数据已初始化验证。3306 是 phpStudy 的 MySQL 5.7（旧项目在用；5.7 跑不了 `02_data.sql` 的窗口函数，禁止用于本项目）。后端启动前设 `$env:MYSQL_PORT="3307"`；MySQL8 暂为临时进程，管理员终端跑 `E:\mysql80\bin\mysqld.exe --install MySQL8 --defaults-file=E:\mysql80\my.ini` + `net start MySQL8` 可注册成服务。验证码接口依赖 Redis，无 Redis 时登录页自动降级为纯账密登录
+6. **MySQL 已就绪（2026-09-08，Docker）/ Redis 仍无**：容器 `tea-mysql`（镜像 `mysql:8` = 8.4.11 LTS），宿主 **3307**→容器3306，root/root，数据卷 `tea-mysql-data` 持久化，`--restart unless-stopped`（随 Docker Desktop 自启）。`tea_saas` 39 表+种子数据已初始化并做宿主机侧连通验证。3306 是 phpStudy 的 MySQL 5.7（旧项目在用；5.7 跑不了 `02_data.sql` 的窗口函数，禁止用于本项目）。后端启动前设 `$env:MYSQL_PORT="3307"`。验证码接口依赖 Redis，无 Redis 时登录页自动降级为纯账密登录；Redis 后续可同样用 Docker 起
 7. **前端 npm 陷阱**：`npm install --prefix <dir>` 在本机会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11，registry 走 npmmirror
 
 ## 5. 接手后的建议顺序（M3 起）
