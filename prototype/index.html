@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>茶饮 SaaS · 可点击原型入口</title>
+<style>
+  :root{
+    --cream:#FAF6EE; --paper:#FFFDF8; --ink:#3A2B1E; --ink2:#6B5A48;
+    --amber:#D97B29; --amber-soft:#F3E2CC; --green:#5E7C4C; --line:#E8DECB;
+    --red:#C2542F; --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--cream);color:var(--ink);min-height:100vh}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 24px 80px}
+  header{margin-bottom:40px}
+  .eyebrow{font-size:13px;letter-spacing:.18em;color:var(--amber);font-weight:600;margin-bottom:10px}
+  h1{font-size:32px;line-height:1.3;font-weight:700}
+  .sub{color:var(--ink2);margin-top:10px;font-size:15px;line-height:1.7}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px}
+  @media(max-width:900px){.cards{grid-template-columns:1fr 1fr}}
+  @media(max-width:720px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:28px;text-decoration:none;color:inherit;display:block;transition:transform .15s ease, box-shadow .15s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(58,43,30,.10)}
+  .tag{display:inline-block;font-size:12px;background:var(--amber-soft);color:var(--amber);padding:3px 10px;border-radius:99px;font-weight:600;margin-bottom:14px}
+  .card h2{font-size:20px;margin-bottom:8px}
+  .card p{font-size:14px;color:var(--ink2);line-height:1.7}
+  .flow{margin-top:16px;font-size:13px;color:var(--green);font-weight:600}
+  .note{margin-top:48px;background:var(--paper);border:1px dashed var(--line);border-radius:var(--radius);padding:20px 24px;font-size:14px;color:var(--ink2);line-height:1.8}
+  .note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">TEA SAAS · CLICKABLE PROTOTYPE</div>
+    <h1>茶饮 SaaS 连锁经营系统<br>可点击原型</h1>
+    <p class="sub">v1.1 线框原型｜关联文档：PRD v1.1（含评审后 11 项决策）｜三端核心流程可交互。<br>v1.1 更新：门店端新增收银台（F-ORD-04）、后台新增套餐管理（P1-4）、平台管理员只读审计（P0-3）、超时 15 分钟取消（P1-5）。建议用 Chrome / Edge 打开，宽度 ≥ 1100px 体验最佳。</p>
+  </header>
+
+  <div class="cards">
+    <a class="card" href="customer-app.html">
+      <span class="tag">顾客端 · 微信小程序</span>
+      <h2>点单流原型</h2>
+      <p>选门店 → 浏览可售商品 → 规格选择 → 购物车 → 订单确认 → 微信支付 → 取餐码。模拟手机竖屏体验。</p>
+      <div class="flow">流程：F-APP-01 → F-APP-02 → F-ORD-01/02 → F-PAY-01</div>
+    </a>
+    <a class="card" href="admin-panel.html">
+      <span class="tag">B 端 · 管理后台（Web）</span>
+      <h2>总部后台原型</h2>
+      <p>工作台 → 配方 BOM → 采购单处理 → 报表看板；侧边栏覆盖总部/加盟商全部菜单。</p>
+      <div class="flow">流程：F-BOM-02 → F-SUP-03 → F-RPT-01/02</div>
+    </a>
+    <a class="card" href="store-terminal.html">
+      <span class="tag">门店端 · 接单收银（Web/平板）</span>
+      <h2>门店接单收银原型</h2>
+      <p>订单泳道看板（新订单/制作中/待取餐/已完成）→ 接单/制作/核销/退款 → 库存台账 → 日结。含店长/店员权限演示。</p>
+      <div class="flow">流程：F-ORD-02/03 → F-INV-01/03 → F-PAY-03</div>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>原型范围说明：</b>本原型用于验证交互与信息架构，非视觉设计稿。视觉风格（配色/字体/品牌色）将在 UI 设计阶段统一输出。数据库/接口以《茶饮SaaS-数据库设计.md》为准。
+  </div>
+</div>
+</body>
+</html>

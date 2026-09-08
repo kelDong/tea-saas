@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>茶饮 SaaS · 系统架构图</title>
+<style>
+  :root{
+    --cream:#FAF6EE; --paper:#FFFFFF; --ink:#3A2B1E; --ink2:#8A7A66;
+    --amber:#D97B29; --amber-deep:#B85F1C; --amber-soft:#F8EDDD;
+    --green:#5E7C4C; --green-soft:#E9F0E3; --blue:#4A7C8C; --blue-soft:#E4EEF1;
+    --purple:#7C6AA6; --purple-soft:#EFEAF6; --red:#C2542F;
+    --line:#E6DAC5; --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--cream);color:var(--ink);padding:28px 20px 60px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{text-align:center;margin-bottom:26px}
+  .eyebrow{font-size:12px;letter-spacing:.2em;color:var(--amber);font-weight:700;margin-bottom:8px}
+  h1{font-size:26px;font-weight:800}
+  .sub{color:var(--ink2);font-size:13.5px;margin-top:8px}
+  .legend{display:flex;justify-content:center;gap:18px;margin-top:26px;font-size:12px;color:var(--ink2);flex-wrap:wrap}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:middle}
+
+  /* ===== 画布 ===== */
+  .canvas{margin-top:22px}
+  .layer{margin-bottom:26px}
+  .layer-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .layer-badge{font-size:12px;font-weight:800;padding:4px 12px;border-radius:99px;color:#fff;letter-spacing:.05em}
+  .layer-note{font-size:12px;color:var(--ink2)}
+  .box-row{display:flex;gap:12px;flex-wrap:wrap}
+
+  .box{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);padding:14px 16px;min-width:150px;flex:1;transition:transform .15s, box-shadow .15s}
+  .box:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(58,43,30,.10)}
+  .box .b-icon{font-size:22px}
+  .box .b-t{font-size:14px;font-weight:700;margin-top:6px}
+  .box .b-d{font-size:11.5px;color:var(--ink2);margin-top:4px;line-height:1.55}
+  .box .b-tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:99px;margin-top:6px;font-weight:600}
+  .box.warn{border-color:#EAC5B6}
+
+  /* 模块分组 */
+  .module-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+  .mcard{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .mcard .mh{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid var(--line)}
+  .mcard .mh .idx{font-size:10px;color:#fff;padding:2px 7px;border-radius:99px;font-weight:800}
+  .mcard .mh .more{margin-left:auto;font-size:10px;color:var(--ink2);font-weight:400}
+  .mcard .mb{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+  .mi{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 9px;border-radius:8px;background:#FBF7EE}
+  .mi .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+  /* 租户贯穿条 */
+  .tenant{background:linear-gradient(90deg,var(--amber-soft),#FBEDE0);border:1.5px dashed var(--amber);border-radius:var(--radius);padding:12px 18px;margin:4px 0 6px;font-size:13px;color:var(--amber-deep);text-align:center;font-weight:600}
+  .tenant small{display:block;font-size:11.5px;color:var(--ink2);font-weight:400;margin-top:4px}
+
+  /* 流线 */
+  .flows{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.flows{grid-template-columns:1fr}}
+  .flow-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .flow-card .f-t{font-size:13px;font-weight:700;margin-bottom:10px}
+  .flow-step{display:flex;align-items:center;gap:6px;font-size:12px;flex-wrap:wrap}
+  .fs{background:var(--blue-soft);color:var(--blue);border-radius:99px;padding:4px 10px;font-weight:600}
+  .fs.g{background:var(--green-soft);color:var(--green)}
+  .fs.a{background:var(--amber-soft);color:var(--amber-deep)}
+  .arr{color:var(--ink2)}
+
+  footer{margin-top:30px;text-align:center;font-size:12px;color:var(--ink2);line-height:1.8}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">TEA SAAS · SYSTEM ARCHITECTURE</div>
+    <h1>茶饮 SaaS 连锁经营系统 · 架构图</h1>
+    <p class="sub">模块化单体 · 多租户 SaaS · BOM 库存联动 ｜ 技术栈：JDK 21 + Spring Boot 3.5.5</p>
+    <div class="legend">
+      <span><i style="background:var(--blue)"></i>学生端/顾客接入</span>
+      <span><i style="background:var(--amber)"></i>总部/加盟商/门店</span>
+      <span><i style="background:var(--green)"></i>核心业务模块</span>
+      <span><i style="background:var(--purple)"></i>基础设施/框架层</span>
+      <span><i style="background:var(--red)"></i>数据层/外部依赖</span>
+    </div>
+  </header>
+
+  <div class="canvas">
+
+    <!-- ═══════════ 接入层 ═══════════ -->
+    <div class="layer">
+      <div class="layer-title">
+        <span class="layer-badge" style="background:var(--blue)">① 接入层</span>
+        <span class="layer-note">三端产品，通过 HTTPS/REST 与后端交互，按角色渲染</span>
+      </div>
+      <div class="box-row">
+        <div class="box">
+          <div class="b-icon">📱</div>
+          <div class="b-t">顾客小程序</div>
+          <div class="b-d">uni-app（Vue3）· 点单/支付/会员<br>选最近门店 → 浏览可售商品</div>
+          <span class="b-tag" style="background:var(--blue-soft);color:var(--blue)">C 端</span>
+        </div>
+        <div class="box">
+          <div class="b-icon">🖥️</div>
+          <div class="b-t">管理后台</div>
+          <div class="b-d">Vue3 + Pinia + Element Plus<br>总部/加盟商/门店 按角色渲染菜单</div>
+          <span class="b-tag" style="background:var(--amber-soft);color:var(--amber-deep)">B 端</span>
+        </div>
+        <div class="box">
+          <div class="b-icon">🧾</div>
+          <div class="b-t">门店端</div>
+          <div class="b-d">Web/平板 · 接单/制作/核销<br>收银台（现金/微信码/储值）</div>
+          <span class="b-tag" style="background:var(--green-soft);color:var(--green)">B 端</span>
+        </div>
+      </div>
+      <div class="tenant" style="margin-top:12px">🛡️ 安全接入：HTTPS · Sa-Token 认证（B端）/ 微信登录（C端）· 限流 · 参数校验</div>
+    </div>
+
+    <!-- ═══════════ 应用层 ═══════════ -->
+    <div class="layer">
+      <div class="layer-title">
+        <span class="layer-badge" style="background:var(--amber)">② 应用层（后端 · 模块化单体）</span>
+        <span class="layer-note">单项目 Maven 多模块，一个可部署单元，一期不上微服务</span>
+      </div>
+
+      <!-- 业务模块分组 -->
+      <div class="module-group">
+        <!-- 地基 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--amber-deep)">核心</span>tea-system <span class="more">地基</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>租户/品牌（tenant）</span>
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>用户/角色/菜单（RBAC）</span>
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>操作日志</span>
+          </div>
+        </div>
+        <!-- 产品研发 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--green)">研发</span>tea-bom <span class="more">产品研发</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>原料档案</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>配方 BOM（原料×用量）</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>毛利试算</span>
+          </div>
+        </div>
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--green)">研发</span>tea-product <span class="more">商品上架</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>商品/分类/规格</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>产品库/商品发布</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>加盟商上架（本店售价）</span>
+          </div>
+        </div>
+        <!-- 供应链 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--blue)">供应</span>tea-supply <span class="more">供应链</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>供应商</span>
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>分级价格（原料×等级）</span>
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>采购单（状态机）</span>
+          </div>
+        </div>
+        <!-- 加盟 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--purple)">加盟</span>tea-franchise <span class="more">加盟管理</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>加盟商（等级 A/B/C）</span>
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>门店档案（加盟/直营）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tenant" style="margin:14px 0">🔗 多租户贯穿（tenant_id + store_id）—— 总部看全品牌 / 加盟商看名下门店 / 店员看本店</div>
+
+      <div class="module-group">
+        <!-- 库存 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--red)">库存</span>tea-inventory <span class="more">核心联动</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--red)"></span>门店原料库存（乐观锁）</span>
+            <span class="mi"><span class="dot" style="background:var(--red)"></span>BOM 反算扣减</span>
+            <span class="mi"><span class="dot" style="background:var(--red)"></span>库存预警/变动流水</span>
+          </div>
+        </div>
+        <!-- 订单 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--green)">交易</span>tea-order <span class="more">核心</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>订单状态机（7 态）</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>门店手工收银（POS）</span>
+            <span class="mi"><span class="dot" style="background:var(--green)"></span>购物车/取餐码</span>
+          </div>
+        </div>
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--blue)">支付</span>tea-payment <span class="more">资金</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>微信支付 V3 / 储值通道</span>
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>退款（整单退）</span>
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>回调重试（本地表）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-group" style="margin-top:12px">
+        <!-- 会员/营销/报表 -->
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--purple)">会员</span>tea-member <span class="more">顾客资产</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>会员档案（跨门店）</span>
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>积分/储值</span>
+          </div>
+        </div>
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--purple)">营销</span>tea-marketing <span class="more">复购</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>优惠券（满减/折扣）</span>
+            <span class="mi"><span class="dot" style="background:var(--purple)"></span>发放/核销</span>
+          </div>
+        </div>
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--amber)">报表</span>tea-report <span class="more">决策</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>门店日报/周报</span>
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>品牌汇总看板</span>
+            <span class="mi"><span class="dot" style="background:var(--amber)"></span>库存统计</span>
+          </div>
+        </div>
+        <div class="mcard">
+          <div class="mh"><span class="idx" style="background:var(--blue)">任务</span>tea-job <span class="more">定时</span></div>
+          <div class="mb">
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>超时取消/回调重试</span>
+            <span class="mi"><span class="dot" style="background:var(--blue)"></span>对账/库存复核</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 框架层 -->
+      <div class="box-row" style="margin-top:14px">
+        <div class="box"><div class="b-icon">🧱</div><div class="b-t">tea-server（启动模块）</div><div class="b-d">聚合入口 · 只含启动类 + 配置</div></div>
+        <div class="box"><div class="b-icon">⚙️</div><div class="b-t">tea-framework（框架层）</div><div class="b-d">安全(Sa-Token)· 租户插件 · MyBatis-Plus · Redis 配置</div></div>
+        <div class="box"><div class="b-icon">📦</div><div class="b-t">tea-common（通用层）</div><div class="b-d">Result · BizException · ErrorCode · 枚举 · 工具（零框架依赖）</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════ 数据层 ═══════════ -->
+    <div class="layer">
+      <div class="layer-title">
+        <span class="layer-badge" style="background:var(--red)">③ 数据层</span>
+        <span class="layer-note">MySQL 多租户（共享库 + tenant_id）· Redis 会话/缓存/分布式锁</span>
+      </div>
+      <div class="box-row">
+        <div class="box"><div class="b-icon">🗄️</div><div class="b-t">MySQL 8</div><div class="b-d">33+ 张表 · 多租户隔离<br>BOM/库存/订单/支付/会员</div><span class="b-tag" style="background:var(--red-soft,#F8E8E1);color:var(--red)">核心数据</span></div>
+        <div class="box"><div class="b-icon">⚡</div><div class="b-t">Redis 7</div><div class="b-d">Sa-Token 会话 · 验证码 · 幂等<br>库存预扣（Redis 预扣 + DB 乐观锁）</div><span class="b-tag" style="background:#F8E8E1;color:var(--red)">高性能</span></div>
+      </div>
+    </div>
+
+    <!-- ═══════════ 外部依赖 ═══════════ -->
+    <div class="layer">
+      <div class="layer-title">
+        <span class="layer-badge" style="background:var(--purple)">④ 外部依赖</span>
+        <span class="layer-note">对接微信生态与对象存储</span>
+      </div>
+      <div class="box-row">
+        <div class="box"><div class="b-icon">💬</div><div class="b-t">微信开放平台</div><div class="b-d">小程序登录(code2session)<br>微信支付 V3（JSAPI/Native）</div></div>
+        <div class="box"><div class="b-icon">🖼️</div><div class="b-t">OSS 对象存储</div><div class="b-d">商品图/配方图/品牌素材<br>（二期接入，一期本地）</div></div>
+        <div class="box"><div class="b-icon">📨</div><div class="b-t">钉钉/企业微信</div><div class="b-d">告警通知（运维）<br>二期接入</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════ 核心业务流 ═══════════ -->
+    <div class="layer">
+      <div class="layer-title">
+        <span class="layer-badge" style="background:var(--green)">⑤ 核心业务闭环</span>
+        <span class="layer-note">差异化能力 —— BOM 配方驱动的实时库存与总部-加盟商两级经营</span>
+      </div>
+      <div class="flows">
+        <div class="flow-card">
+          <div class="f-t">🍵 顾客点单扣库存</div>
+          <div class="flow-step">
+            <span class="fs">选门店</span><span class="arr">→</span>
+            <span class="fs g">看可售商品</span><span class="arr">→</span>
+            <span class="fs g">下单(校验库存)</span><span class="arr">→</span>
+            <span class="fs a">支付</span><span class="arr">→</span>
+            <span class="fs">接单</span><span class="arr">→</span>
+            <span class="fs">核销</span><span class="arr">→</span>
+            <span class="fs g">BOM扣库存</span>
+          </div>
+          <div class="b-d" style="margin-top:8px;font-size:11.5px;color:var(--ink2)">可售 = 门店各原料库存 ≥ 配方用量；库存不足自动禁售</div>
+        </div>
+        <div class="flow-card">
+          <div class="f-t">🏭 总部-加盟商供应链</div>
+          <div class="flow-step">
+            <span class="fs a">总部研发配方</span><span class="arr">→</span>
+            <span class="fs a">发布产品库</span><span class="arr">→</span>
+            <span class="fs">加盟商上架</span><span class="arr">→</span>
+            <span class="fs">采购单(分级价)</span><span class="arr">→</span>
+            <span class="fs a">总部确认</span><span class="arr">→</span>
+            <span class="fs g">入库</span><span class="arr">→</span>
+            <span class="fs g">可售恢复</span>
+          </div>
+          <div class="b-d" style="margin-top:8px;font-size:11.5px;color:var(--ink2)">总部不建仓，供应商直发门店；采购价按加盟商等级取分级价格</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <b>架构决策基线：</b>模块化单体（不上微服务）· 自研 · 多租户共享库 · BOM 实时扣减 · 一期不引 MQ · 只整单退款<br>
+    权威文档见 <b>docs/茶饮SaaS-数据库设计.md (v1.1)</b> 与 <b>docs/茶饮SaaS-工程开发规范.md (v1.1)</b>｜ AI 协作见 .harness/
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>门店端 · 接单收银原型</title>
+<style>
+  :root{
+    --cream:#FAF6EE; --paper:#FFFFFF; --ink:#3A2B1E; --ink2:#8A7A66;
+    --amber:#D97B29; --amber-deep:#B85F1C; --amber-soft:#F8EDDD;
+    --green:#5E7C4C; --green-soft:#E9F0E3; --red:#C2542F; --red-soft:#F8E8E1;
+    --line:#EFE6D6; --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--cream);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  /* ===== 顶部栏 ===== */
+  .topbar{background:var(--ink);color:#E8DCC8;display:flex;align-items:center;gap:16px;padding:0 20px;height:56px;flex-shrink:0}
+  .topbar .store{display:flex;align-items:center;gap:10px}
+  .topbar .logo{width:32px;height:32px;border-radius:9px;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:16px}
+  .topbar .sn{font-size:15px;font-weight:700;color:#fff}
+  .topbar .st2{font-size:11px;color:#9A8B74}
+  .open-state{font-size:12px;background:var(--green);color:#fff;padding:4px 12px;border-radius:99px;font-weight:600;cursor:pointer}
+  .open-state.off{background:#6B5D49}
+  .topbar .spacer{flex:1}
+  .clock{font-size:13px;font-variant-numeric:tabular-nums;color:#D9CCB4}
+  .role-box{display:flex;background:rgba(255,255,255,.08);border-radius:99px;padding:3px}
+  .role-box span{font-size:12px;padding:5px 14px;border-radius:99px;cursor:pointer;color:#B9AA90}
+  .role-box span.on{background:var(--amber);color:#fff;font-weight:600}
+  .user{display:flex;align-items:center;gap:8px;font-size:13px}
+  .user .av{width:30px;height:30px;border-radius:50%;background:var(--amber-soft);display:flex;align-items:center;justify-content:center;font-size:14px}
+  /* ===== 导航 ===== */
+  .navrow{display:flex;gap:6px;padding:10px 20px 0;flex-shrink:0}
+  .navtab{padding:9px 18px;font-size:14px;border-radius:10px 10px 0 0;cursor:pointer;color:var(--ink2);border:1px solid transparent;border-bottom:none;font-weight:600}
+  .navtab.on{background:var(--paper);color:var(--amber-deep);border-color:var(--line)}
+  .navtab .n{margin-left:4px;font-size:11px;background:var(--red);color:#fff;border-radius:99px;padding:1px 7px;font-weight:600}
+  /* ===== 内容 ===== */
+  .content{flex:1;overflow-y:auto;padding:14px 20px 30px}
+  .page{display:none}
+  .page.on{display:block;animation:fadeIn .18s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .panel-head .t{font-size:14px;font-weight:700}
+  .panel-head .more{font-size:12px;color:var(--amber-deep);cursor:pointer}
+  .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
+  @media(max-width:1100px){.stat-row{grid-template-columns:repeat(3,1fr)}}
+  .stat-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px}
+  .stat-card .l{font-size:12px;color:var(--ink2)}
+  .stat-card .v{font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat-card .v.warn{color:var(--red)}
+  .stat-card .d{font-size:11px;margin-top:2px;color:var(--ink2)}
+  .alert-banner{background:var(--red-soft);border:1px solid #EAC5B6;border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:13px;color:var(--red);font-weight:600}
+  .alert-banner.green{background:var(--green-soft);border-color:#C9DCC0;color:var(--green)}
+  /* ===== 订单泳道看板 ===== */
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:1300px){.kanban{grid-template-columns:repeat(2,1fr)}}
+  .lane{background:#F4EDE0;border:1px solid var(--line);border-radius:var(--radius);padding:10px;min-height:300px}
+  .lane-head{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 10px;font-size:13px;font-weight:700}
+  .lane-head .cnt{background:var(--ink);color:#fff;font-size:11px;border-radius:99px;padding:1px 8px}
+  .lane-head .cnt.new{background:var(--red)}
+  .order-card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer;transition:box-shadow .12s}
+  .order-card:hover{box-shadow:0 6px 16px rgba(58,43,30,.12)}
+  .order-card .o-top{display:flex;justify-content:space-between;align-items:center}
+  .order-card .code{font-size:18px;font-weight:800;color:var(--amber-deep);font-variant-numeric:tabular-nums}
+  .order-card .time{font-size:11px;color:var(--ink2)}
+  .order-card .items{font-size:12px;color:var(--ink);margin:8px 0;line-height:1.6}
+  .order-card .items .q{color:var(--ink2)}
+  .order-card .o-foot{display:flex;justify-content:space-between;align-items:center}
+  .order-card .amt{font-size:14px;font-weight:800}
+  .order-card .note{font-size:11px;color:var(--amber-deep);background:var(--amber-soft);padding:2px 8px;border-radius:99px}
+  .tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;font-weight:600}
+  .tag.amber{background:var(--amber-soft);color:var(--amber-deep)}
+  .tag.green{background:var(--green-soft);color:var(--green)}
+  .tag.gray{background:#F0EBDF;color:var(--ink2)}
+  .tag.red{background:var(--red-soft);color:var(--red)}
+  /* ===== 按钮 ===== */
+  .btn{background:var(--amber);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  .btn.sm{padding:5px 12px;font-size:12px}
+  .btn.green{background:var(--green)}
+  .btn.gray{background:#D8CFC0;color:#fff}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.red{background:var(--red)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  /* ===== 库存 ===== */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#FBF7EE;color:var(--ink2);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#FDFAF3}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .bar{height:8px;border-radius:99px;background:#F0EBDF;overflow:hidden;min-width:80px}
+  .bar i{display:block;height:100%;border-radius:99px}
+  .bar i.low{background:var(--red)}
+  .bar i.mid{background:var(--amber)}
+  .bar i.ok{background:var(--green)}
+  /* ===== 订单详情弹层 ===== */
+  .modal-mask{display:none;position:fixed;inset:0;background:rgba(42,32,22,.45);z-index:50;align-items:center;justify-content:center}
+  .modal-mask.show{display:flex}
+  .modal{background:var(--paper);border-radius:16px;width:520px;max-width:94vw;max-height:86vh;overflow-y:auto;padding:20px 22px}
+  .modal .m-title{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .modal .m-title span{cursor:pointer;color:var(--ink2)}
+  .detail-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .detail-row .l{color:var(--ink2)}
+  .detail-row .r{font-weight:600}
+  .detail-row .r.amber{color:var(--amber-deep);font-weight:700}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .modal-foot .btn{flex:1;max-width:140px}
+  /* ===== 日结 ===== */
+  .settle-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+  @media(max-width:1100px){.settle-grid{grid-template-columns:1fr}}
+  .guide{position:fixed;right:18px;bottom:18px;background:var(--ink);color:#E8DCC8;border-radius:12px;padding:12px 16px;font-size:12px;line-height:1.8;z-index:60;max-width:240px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .guide b{color:#F5B573}
+  .guide .x{cursor:pointer;float:right;color:#9A8B74}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部 ===== -->
+<div class="topbar">
+  <div class="store">
+    <div class="logo">🍵</div>
+    <div>
+      <div class="sn">山茶制造 · 春熙路店</div>
+      <div class="st2">门店编号 ST-001 · 加盟商：直营</div>
+    </div>
+  </div>
+  <span class="open-state" onclick="toggleOpen(this)">● 营业中</span>
+  <span class="spacer"></span>
+  <span class="clock" id="clock">--:--</span>
+  <div class="role-box" title="演示角色权限差异（正式版由 tea-system 控制）">
+    <span class="on" onclick="setRole('店长',this)">店长</span>
+    <span onclick="setRole('店员',this)">店员</span>
+  </div>
+  <div class="user"><span class="av">👤</span><span id="user-name">店长 · 王姐</span></div>
+</div>
+
+<!-- ===== 导航 ===== -->
+<div class="navrow">
+  <div class="navtab on" data-p="dash" onclick="nav(this)">🏠 工作台</div>
+  <div class="navtab" data-p="pos" onclick="nav(this)">🧮 收银台 <span class="tag amber" style="margin-left:4px">新</span></div>
+  <div class="navtab" data-p="orders" onclick="nav(this)">🧾 接单收银 <span class="n" id="new-badge">2</span></div>
+  <div class="navtab" data-p="stock" onclick="nav(this)">📦 库存台账</div>
+  <div class="navtab" data-p="settle" onclick="nav(this)">💰 日结 <span class="tag red" style="margin-left:4px" id="settle-lock">店长</span></div>
+</div>
+
+<!-- ===== 内容 ===== -->
+<div class="content">
+
+  <!-- ========== 工作台 ========== -->
+  <div class="page on" id="p-dash">
+    <div class="alert-banner" id="order-alert">🔔 有 2 笔新订单待接单 —— <span style="cursor:pointer;text-decoration:underline" onclick="navById('orders')">立即处理 ›</span></div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="l">今日营业额</div><div class="v">¥2,860</div><div class="d">目标 ¥3,500 · 82%</div></div>
+      <div class="stat-card"><div class="l">今日订单</div><div class="v">92</div><div class="d">客单价 ¥31.1</div></div>
+      <div class="stat-card"><div class="l">进行中订单</div><div class="v warn">5</div><div class="d">2 待接单 · 3 制作中</div></div>
+      <div class="stat-card"><div class="l">待取餐</div><div class="v">3</div><div class="d">最久等待 6 分钟</div></div>
+      <div class="stat-card"><div class="l">低库存原料</div><div class="v warn">3</div><div class="d" style="color:var(--red)">珍珠 / 香水柠檬 / 鲜牛奶</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="t">新订单（2）</span><span class="more" onclick="navById('orders')">全部订单 ›</span></div>
+      <table>
+        <tr><th>取餐码</th><th>商品</th><th>金额</th><th>下单时间</th><th>等待</th><th>操作</th></tr>
+        <tr><td class="mono" style="font-size:16px;font-weight:800;color:var(--amber-deep)">A-033</td><td>杨枝甘露 ×2</td><td>¥44.00</td><td>14:32:10</td><td><span class="tag red">3 分钟</span></td><td><button class="btn green sm" onclick="openOrder()">接单</button></td></tr>
+        <tr><td class="mono" style="font-size:16px;font-weight:800;color:var(--amber-deep)">A-034</td><td>珍珠奶茶 ×1 · 柠檬茶 ×1</td><td>¥28.00</td><td>14:33:05</td><td><span class="tag red">2 分钟</span></td><td><button class="btn green sm" onclick="openOrder()">接单</button></td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="t">低库存提醒（3）</span><span class="more" onclick="navById('stock')">库存台账 ›</span></div>
+      <table>
+        <tr><th>原料</th><th>当前库存</th><th>预警阈值</th><th>可做杯数</th><th>建议</th></tr>
+        <tr><td>珍珠</td><td class="mono">0.3 kg</td><td class="mono">2 kg</td><td>约 6 杯</td><td><span class="tag red">立即补货</span></td></tr>
+        <tr><td>香水柠檬</td><td class="mono">6 个</td><td class="mono">20 个</td><td>约 6 杯</td><td><span class="tag red">立即补货</span></td></tr>
+        <tr><td>鲜牛奶</td><td class="mono">1.5 L</td><td class="mono">8 L</td><td>约 10 杯</td><td><span class="tag amber">今晚前</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 收银台（F-ORD-04 门店手工收银） ========== -->
+  <div class="page" id="p-pos">
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="l">今日收银单数</div><div class="v">24</div></div>
+      <div class="stat-card"><div class="l">现金收款</div><div class="v">¥386</div></div>
+      <div class="stat-card"><div class="l">微信收款码</div><div class="v">¥1,124</div></div>
+      <div class="stat-card"><div class="l">储值支付</div><div class="v">¥168</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="t">手工开单 · 收款（F-ORD-04）</span><span class="more" id="pos-perm-note">店员可操作</span></div>
+      <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="border:1px solid var(--line);border-radius:12px;padding:14px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px">① 选择商品（本店可售）</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <span class="chip-like" onclick="posAdd(this)" style="padding:8px 12px;border:1px solid var(--amber);border-radius:99px;background:var(--amber-soft);color:var(--amber-deep);font-size:13px;cursor:pointer">🧋 珍珠奶茶 ¥15</span>
+            <span class="chip-like" onclick="posAdd(this)" style="padding:8px 12px;border:1px solid var(--amber);border-radius:99px;background:var(--amber-soft);color:var(--amber-deep);font-size:13px;cursor:pointer">🥭 杨枝甘露 ¥22</span>
+            <span class="chip-like" onclick="posAdd(this)" style="padding:8px 12px;border:1px solid var(--amber);border-radius:99px;background:var(--amber-soft);color:var(--amber-deep);font-size:13px;cursor:pointer">🍋 手打柠檬茶 ¥13</span>
+            <span class="chip-like" onclick="posAdd(this)" style="padding:8px 12px;border:1px solid var(--amber);border-radius:99px;background:var(--amber-soft);color:var(--amber-deep);font-size:13px;cursor:pointer">🥤 芋泥波波 ¥18</span>
+            <span class="chip-like" style="padding:8px 12px;border:1px dashed var(--red);border-radius:99px;background:#fff;color:var(--red);font-size:13px">🍵 抹茶奶盖 缺货</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink2);margin-top:10px">库存联动：仅显示可售商品；缺货商品自动置灰（F-PRD-03）</div>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:12px;padding:14px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px">② 待收订单</div>
+          <div id="pos-cart" style="font-size:13px;min-height:80px;color:var(--ink2)">（点击左侧商品加入）</div>
+          <div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px">应收 <b style="color:var(--amber-deep);font-size:18px" id="pos-total">¥0.00</b></span>
+          </div>
+          <div style="font-size:13px;font-weight:700;margin:12px 0 8px">③ 收款方式（三选一）</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pay-chip" onclick="posPay(this,'现金')" style="padding:8px 14px;border:1px solid var(--line);border-radius:99px;background:#fff;font-size:13px;cursor:pointer">💵 现金</span>
+            <span class="pay-chip" onclick="posPay(this,'微信收款码')" style="padding:8px 14px;border:1px solid var(--line);border-radius:99px;background:#fff;font-size:13px;cursor:pointer">💚 微信收款码(Native)</span>
+            <span class="pay-chip" onclick="posPay(this,'储值')" style="padding:8px 14px;border:1px solid var(--line);border-radius:99px;background:#fff;font-size:13px;cursor:pointer">🎫 储值</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink2);margin-top:8px">一期：现金/微信码/储值三选一，不支持混合支付；现金需录入实收找零</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-ORD-04（P0-1 决策）｜手工订单 order_source=门店收银，计入日结（F-PAY-03）；顾客无需登录</div>
+  </div>
+
+  <!-- ========== 接单收银（订单泳道） ========== -->
+  <div class="page" id="p-orders">
+    <div class="kanban">
+      <div class="lane">
+        <div class="lane-head"><span>🆕 新订单</span><span class="cnt new">2</span></div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-033</span><span class="time">14:32</span></div>
+          <div class="items">杨枝甘露 ×2<br><span class="q">少冰/半糖 · 去冰/全糖</span></div>
+          <div class="o-foot"><span class="amt">¥44.00</span><span class="note">⏱ 3 分钟</span></div>
+        </div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-034</span><span class="time">14:33</span></div>
+          <div class="items">珍珠奶茶 ×1<br>手打柠檬茶 ×1</div>
+          <div class="o-foot"><span class="amt">¥28.00</span><span class="note">⏱ 2 分钟</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-head"><span>🔥 制作中</span><span class="cnt">3</span></div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-030</span><span class="time">14:26</span></div>
+          <div class="items">芋泥波波奶茶 ×1 · 黑糖珍珠鲜奶 ×2</div>
+          <div class="o-foot"><span class="amt">¥50.00</span><span class="tag amber">制作中</span></div>
+        </div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-031</span><span class="time">14:29</span></div>
+          <div class="items">珍珠奶茶 ×3</div>
+          <div class="o-foot"><span class="amt">¥45.00</span><span class="tag amber">制作中</span></div>
+        </div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-032</span><span class="time">14:31</span></div>
+          <div class="items">手打柠檬茶 ×2</div>
+          <div class="o-foot"><span class="amt">¥26.00</span><span class="tag amber">制作中</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-head"><span>🥤 待取餐</span><span class="cnt">3</span></div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-028</span><span class="time">14:20</span></div>
+          <div class="items">杨枝甘露 ×1 · 珍珠奶茶 ×1</div>
+          <div class="o-foot"><span class="amt">¥37.00</span><span class="tag green">待取餐</span></div>
+        </div>
+        <div class="order-card" onclick="openOrder()">
+          <div class="o-top"><span class="code">A-029</span><span class="time">14:24</span></div>
+          <div class="items">黑糖珍珠鲜奶 ×2</div>
+          <div class="o-foot"><span class="amt">¥32.00</span><span class="tag green">待取餐</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-head"><span>✅ 已完成</span><span class="cnt">87</span></div>
+        <div style="text-align:center;color:var(--ink2);font-size:12px;padding:30px 10px">今日已完成 87 单<br>点击订单可查看详情与退款</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--ink2);margin-top:10px">对应 PRD：F-ORD-02/03｜接单 → 制作 → 核销，状态机流转；订单详情见弹层（F-ORD-03 操作留痕）</div>
+  </div>
+
+  <!-- ========== 库存台账 ========== -->
+  <div class="page" id="p-stock">
+    <div class="stat-row" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card"><div class="l">原料种类</div><div class="v">24</div></div>
+      <div class="stat-card"><div class="l">低库存</div><div class="v warn">3</div></div>
+      <div class="stat-card"><div class="l">今日消耗（按 BOM）</div><div class="v">≈¥1,240</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="t">门店原料库存台账</span><span class="more" id="adjust-btn" onclick="adjustStock()">盘点修正</span></div>
+      <table>
+        <tr><th>原料</th><th>单位</th><th>当前库存</th><th>预警阈值</th><th>水位</th><th>状态</th><th>最近变动</th></tr>
+        <tr><td>红茶</td><td>g</td><td class="mono">3,200</td><td class="mono">500</td><td><div class="bar"><i class="ok" style="width:85%"></i></div></td><td><span class="tag green">充足</span></td><td>14:20 下单扣减</td></tr>
+        <tr><td>珍珠</td><td>kg</td><td class="mono">0.3</td><td class="mono">2</td><td><div class="bar"><i class="low" style="width:8%"></i></div></td><td><span class="tag red">低库存</span></td><td>14:33 下单扣减</td></tr>
+        <tr><td>香水柠檬</td><td>个</td><td class="mono">6</td><td class="mono">20</td><td><div class="bar"><i class="low" style="width:18%"></i></div></td><td><span class="tag red">低库存</span></td><td>14:29 下单扣减</td></tr>
+        <tr><td>鲜牛奶</td><td>L</td><td class="mono">1.5</td><td class="mono">8</td><td><div class="bar"><i class="mid" style="width:15%"></i></div></td><td><span class="tag amber">偏低</span></td><td>14:26 下单扣减</td></tr>
+        <tr><td>杯盖</td><td>个</td><td class="mono">1,240</td><td class="mono">300</td><td><div class="bar"><i class="ok" style="width:72%"></i></div></td><td><span class="tag green">充足</span></td><td>13:40 采购入库</td></tr>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-INV-01/03｜库存由 BOM 下单自动扣减（F-INV-02），采购入库自动增加（F-SUP-04）；盘点修正仅店长可用</div>
+  </div>
+
+  <!-- ========== 日结 ========== -->
+  <div class="page" id="p-settle">
+    <div class="settle-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-head"><span class="t">今日日结 · 2025-04-01</span><span class="tag green">营业正常</span></div>
+          <table>
+            <tr><th>项目</th><th>金额/数量</th><th>说明</th></tr>
+            <tr><td>营业额（已支付）</td><td class="mono" style="font-weight:700">¥2,860.00</td><td>92 单</td></tr>
+            <tr><td>微信支付</td><td class="mono">¥2,612.00</td><td>84 单</td></tr>
+            <tr><td>储值支付</td><td class="mono">¥248.00</td><td>8 单</td></tr>
+            <tr><td>退款</td><td class="mono" style="color:var(--red)">-¥36.00</td><td>1 单（已回补库存）</td></tr>
+            <tr><td>优惠券抵扣</td><td class="mono">-¥58.00</td><td>19 单使用</td></tr>
+            <tr><td>积分抵扣</td><td class="mono">-¥12.00</td><td>6 单使用</td></tr>
+            <tr><td>原料消耗成本（估算）</td><td class="mono">¥1,240.00</td><td>按 BOM 自动核算</td></tr>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-head"><span class="t">对账检查</span></div>
+          <div style="padding:14px 16px;font-size:13px;line-height:2">
+            ✅ 支付流水 92 笔 = 订单 92 笔<br>
+            ✅ 库存流水与台账一致<br>
+            <span id="settle-check" style="color:var(--green)">✅ 无异常差异</span><br>
+            <div style="margin-top:12px">
+              <button class="btn green" id="settle-btn" onclick="settleNow()">完成日结</button>
+              <span style="font-size:11px;color:var(--ink2)"> 仅店长可操作</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-PAY-03（对账）｜日结后生成当日报表快照，回传总部（F-RPT-01）</div>
+  </div>
+</div>
+
+<!-- ===== 订单详情弹层 ===== -->
+<div class="modal-mask" id="order-modal">
+  <div class="modal">
+    <div class="m-title">订单 A-033 <span onclick="closeModal()">✕</span></div>
+    <div class="detail-row"><span class="l">状态</span><span class="r" id="d-status"><span class="tag red">待接单</span></span></div>
+    <div class="detail-row"><span class="l">下单时间</span><span class="r">14:32:10</span></div>
+    <div class="detail-row"><span class="l">取餐方式</span><span class="r">到店自取</span></div>
+    <div style="margin:12px 0 6px;font-size:13px;font-weight:700">商品明细</div>
+    <div class="detail-row"><span class="l">杨枝甘露（少冰/半糖）</span><span class="r">¥22.00 ×2</span></div>
+    <div style="background:var(--amber-soft);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:13px">
+      合计 <b style="color:var(--amber-deep);font-size:16px">¥44.00</b>
+      <div style="font-size:11px;color:var(--ink2);margin-top:4px">支付：微信支付 · 已到账</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn red" id="d-refund" onclick="refund()">退款</button>
+      <button class="btn gray" id="d-accept" onclick="acceptOrder()">接单</button>
+      <button class="btn" id="d-make" onclick="makeOrder()" style="display:none">开始制作</button>
+      <button class="btn green" id="d-finish" onclick="finishOrder()" style="display:none">核销取餐</button>
+    </div>
+  </div>
+</div>
+
+<!-- 权限说明浮层 -->
+<div class="guide" id="guide">
+  <span class="x" onclick="document.getElementById('guide').style.display='none'">✕</span>
+  <b>门店端原型说明（v1.1）</b><br>
+  🧮 收银台：手工开单收款（现金/微信码/储值）F-ORD-04<br>
+  🧾 接单收银：四列泳道看板，点订单开详情<br>
+  👤 切换「店长/店员」查看权限差异：<br>
+  · 店员：无退款 / 日结 / 盘点修正<br>
+  · 店长：全部操作 + 日结<br>
+  <span style="color:#9A8B74">权限由 tea-system（R7 店长 / R8 店员）控制</span>
+</div>
+
+<script>
+  /* ===== 角色（演示权限）===== */
+  let role='店长';
+  function setRole(r,el){
+    role=r;
+    document.querySelectorAll('.role-box span').forEach(s=>s.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('user-name').textContent=r==='店长'?'店长 · 王姐':'店员 · 小李';
+    refreshPerm();
+  }
+  function refreshPerm(){
+    const isBoss=role==='店长';
+    // 店员：无退款/日结/盘点
+    document.getElementById('settle-lock').textContent=isBoss?'店长':'仅店长';
+    document.getElementById('settle-btn').disabled=!isBoss;
+    document.getElementById('settle-btn').textContent=isBoss?'完成日结':'无权限（店长操作）';
+    document.getElementById('adjust-btn').textContent=isBoss?'盘点修正':'盘点修正（店长）';
+    document.getElementById('adjust-btn').style.color=isBoss?'':'#B9AA90';
+    document.getElementById('d-refund').disabled=!isBoss;
+    document.getElementById('d-refund').textContent=isBoss?'退款':'退款（无权限）';
+  }
+  /* ===== 导航 ===== */
+  function nav(el){
+    document.querySelectorAll('.navtab').forEach(t=>t.classList.remove('on'));
+    el.classList.add('on');
+    showPage(el.dataset.p);
+  }
+  function navById(id){
+    document.querySelectorAll('.navtab').forEach(t=>t.classList.toggle('on',t.dataset.p===id));
+    showPage(id);
+  }
+  function showPage(id){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+    document.getElementById('p-'+id).classList.add('on');
+  }
+  /* ===== 订单操作 ===== */
+  let orderStep=0; // 0待接单 1制作中 2待取餐 3已完成
+  function openOrder(){
+    document.getElementById('order-modal').classList.add('show');
+    renderOrder();
+  }
+  function renderOrder(){
+    const st=document.getElementById('d-status');
+    const steps=['<span class="tag red">待接单</span>','<span class="tag amber">制作中</span>','<span class="tag green">待取餐</span>','<span class="tag gray">已完成</span>'];
+    st.innerHTML=steps[orderStep];
+    document.getElementById('d-accept').style.display=orderStep===0?'':'none';
+    document.getElementById('d-make').style.display=orderStep===1?'':'none';
+    document.getElementById('d-finish').style.display=orderStep===2?'':'none';
+    refreshPerm();
+  }
+  function acceptOrder(){orderStep=1;renderOrder();document.getElementById('new-badge').textContent='1';}
+  function makeOrder(){orderStep=2;renderOrder();}
+  function finishOrder(){orderStep=3;renderOrder();alert('原型：核销完成，取餐码 A-033 已核销');}
+  function refund(){if(role!=='店长'){alert('店员无退款权限（R8）');return;}alert('原型：退款 ¥44.00 原路退回，库存已回补');}
+  function closeModal(){document.getElementById('order-modal').classList.remove('show');}
+  document.getElementById('order-modal').addEventListener('click',e=>{if(e.target.id==='order-modal')closeModal();});
+  /* ===== 其他 ===== */
+  function toggleOpen(el){
+    const on=el.textContent.includes('营业中');
+    el.textContent=on?'● 打烊中':'● 营业中';
+    el.className='open-state'+(on?' off':'');
+    if(on){document.querySelector('.alert-banner').style.display='none';}
+  }
+  function adjustStock(){if(role!=='店长'){alert('盘点修正仅店长可用（F-INV-01）');return;}alert('原型：盘点弹窗——输入实际库存，差异留痕');}
+  function settleNow(){if(role!=='店长'){alert('日结仅店长可操作');return;}alert('原型：日结完成，报表已回传总部（F-RPT-01）');}
+  /* ===== 收银台（F-ORD-04）===== */
+  let posCart=[];
+  function posAdd(el){
+    const m=el.textContent.match(/([\u4e00-\u9fa5A-Za-z]+)\s*¥(\d+)/);
+    if(!m)return;
+    const name=m[1].replace(/[🧋🥭🍋🥤🍵]/g,'').trim();
+    const price=parseInt(m[2]);
+    const found=posCart.find(c=>c.name===name);
+    if(found){found.qty++;}else{posCart.push({name,price,qty:1});}
+    renderPos();
+  }
+  function renderPos(){
+    const box=document.getElementById('pos-cart');
+    if(posCart.length===0){box.innerHTML='<span style="color:var(--ink2)">（点击左侧商品加入）</span>';}
+    else{
+      box.innerHTML=posCart.map((c,i)=>`<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${c.name} ×${c.qty}</span><span>¥${(c.price*c.qty).toFixed(2)}</span></div>`).join('');
+    }
+    const total=posCart.reduce((s,c)=>s+c.price*c.qty,0);
+    document.getElementById('pos-total').textContent='¥'+total.toFixed(2);
+  }
+  function posPay(el,method){
+    if(posCart.length===0){alert('请先选择商品');return;}
+    const total=posCart.reduce((s,c)=>s+c.price*c.qty,0);
+    if(total===0){alert('金额为 0，无法收款');return;}
+    alert(`原型：已通过「${method}」收款 ¥${total.toFixed(2)}\n订单已入账（order_source=门店收银），计入今日日结`);
+    posCart=[];renderPos();
+  }
+  /* ===== 时钟 ===== */
+  setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});},1000);
+</script>
+</body>
+</html>

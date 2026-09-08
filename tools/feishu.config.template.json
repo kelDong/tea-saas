@@ -1,0 +1,6 @@
+{
+  "_说明": "复制本文件为 feishu.config.json 并填入真实值；feishu.config.json 含密钥，禁止提交到 git",
+  "app_id": "YOUR_APP_ID",
+  "app_secret": "YOUR_APP_SECRET",
+  "user_id": "YOUR_USER_ID"
+}

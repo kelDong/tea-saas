@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>总部后台 · 核心页原型</title>
+<style>
+  :root{
+    --cream:#FAF6EE; --paper:#FFFFFF; --ink:#3A2B1E; --ink2:#8A7A66;
+    --amber:#D97B29; --amber-deep:#B85F1C; --amber-soft:#F8EDDD;
+    --green:#5E7C4C; --green-soft:#E9F0E3; --red:#C2542F; --red-soft:#F8E8E1;
+    --line:#EFE6D6; --radius:14px; --sidebar:#2E251B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--cream);color:var(--ink);height:100vh;display:flex;overflow:hidden}
+  /* ===== 侧边栏 ===== */
+  .sidebar{width:230px;background:var(--sidebar);color:#E8DCC8;display:flex;flex-direction:column;flex-shrink:0}
+  .brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand .logo{width:34px;height:34px;border-radius:10px;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .brand .bn{font-size:15px;font-weight:700;color:#fff}
+  .brand .bt{font-size:10px;color:#9A8B74}
+  .nav{flex:1;overflow-y:auto;padding:10px 0 20px}
+  .nav-group{padding:14px 18px 6px;font-size:11px;color:#8A7B63;letter-spacing:.08em}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:13.5px;color:#D9CCB4;cursor:pointer;border-left:3px solid transparent;transition:background .12s}
+  .nav-item:hover{background:rgba(255,255,255,.05)}
+  .nav-item.on{background:rgba(217,123,41,.16);color:#F5B573;border-left-color:var(--amber);font-weight:600}
+  .nav-item .ico{font-size:15px;width:20px;text-align:center}
+  .nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;border-radius:99px;padding:1px 7px}
+  .side-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#9A8B74;display:flex;align-items:center;gap:8px}
+  /* ===== 主区域 ===== */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{height:58px;background:var(--paper);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:16px;flex-shrink:0}
+  .topbar .page-title{font-size:17px;font-weight:700}
+  .topbar .crumb{font-size:12px;color:var(--ink2)}
+  .topbar .spacer{flex:1}
+  .role-switch{font-size:12px;color:var(--amber-deep);background:var(--amber-soft);padding:5px 12px;border-radius:99px;cursor:pointer}
+  .topbar .avatar{width:34px;height:34px;border-radius:50%;background:var(--amber-soft);display:flex;align-items:center;justify-content:center;font-size:15px}
+  .content{flex:1;overflow-y:auto;padding:20px 22px 40px}
+  .page{display:none}
+  .page.on{display:block;animation:fadeIn .18s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* ===== 通用组件 ===== */
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  @media(max-width:1200px){.stat-row{grid-template-columns:repeat(2,1fr)}}
+  .stat-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .stat-card .l{font-size:12px;color:var(--ink2)}
+  .stat-card .v{font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+  .stat-card .d{font-size:11px;margin-top:4px}
+  .stat-card .d.up{color:var(--green)} .stat-card .d.down{color:var(--red)}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--line)}
+  .panel-head .t{font-size:14px;font-weight:700}
+  .panel-head .more{font-size:12px;color:var(--amber-deep);cursor:pointer}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#FBF7EE;color:var(--ink2);font-weight:600;text-align:left;padding:10px 18px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:12px 18px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#FDFAF3}
+  .tag{display:inline-block;font-size:11px;padding:3px 10px;border-radius:99px;font-weight:600}
+  .tag.amber{background:var(--amber-soft);color:var(--amber-deep)}
+  .tag.green{background:var(--green-soft);color:var(--green)}
+  .tag.red{background:var(--red-soft);color:var(--red)}
+  .tag.gray{background:#F0EBDF;color:var(--ink2)}
+  .btn{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.sm{padding:5px 12px;font-size:12px}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.green{background:var(--green)}
+  .btn.red{background:var(--red)}
+  .link{color:var(--amber-deep);cursor:pointer;font-size:13px}
+  .link.red{color:var(--red)}
+  .bar{height:8px;border-radius:99px;background:#F0EBDF;overflow:hidden;min-width:90px}
+  .bar i{display:block;height:100%;background:var(--amber);border-radius:99px}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--ink2)}
+  .placeholder{padding:60px 20px;text-align:center;color:var(--ink2);font-size:14px}
+  .placeholder .big{font-size:40px;margin-bottom:12px}
+  /* 表单 */
+  .form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:var(--ink2)}
+  .field input,.field select{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;background:#fff;min-width:140px}
+  /* 弹窗 */
+  .modal-mask{display:none;position:fixed;inset:0;background:rgba(42,32,22,.45);z-index:50;align-items:center;justify-content:center}
+  .modal-mask.show{display:flex}
+  .modal{background:var(--paper);border-radius:16px;width:560px;max-width:94vw;max-height:86vh;overflow-y:auto;padding:22px}
+  .modal .m-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between}
+  .modal .m-title span{cursor:pointer;color:var(--ink2)}
+  .modal table td{padding:8px 12px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  /* 图表占位 */
+  .chart{display:flex;align-items:flex-end;gap:10px;height:170px;padding:16px 18px}
+  .chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .chart .col .cbar{width:60%;background:var(--amber);border-radius:6px 6px 0 0;position:relative;min-height:4px}
+  .chart .col .cl{font-size:11px;color:var(--ink2)}
+  .chart .col .cv{font-size:11px;color:var(--amber-deep);font-weight:700}
+  .legend{display:flex;gap:16px;padding:0 18px 14px;font-size:12px;color:var(--ink2)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+</style>
+</head>
+<body>
+
+<!-- ===== 侧边栏 ===== -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">🍵</div>
+    <div><div class="bn">山茶制造</div><div class="bt">总部管理平台</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-group">经营</div>
+    <div class="nav-item on" data-p="dashboard" onclick="nav(this)"><span class="ico">📊</span>工作台</div>
+    <div class="nav-item" data-p="report" onclick="nav(this)"><span class="ico">📈</span>经营报表</div>
+    <div class="nav-item" data-p="orders" onclick="nav(this)"><span class="ico">🧾</span>订单查询<span class="badge">3</span></div>
+    <div class="nav-group">产品</div>
+    <div class="nav-item" data-p="bom" onclick="nav(this)"><span class="ico">🧪</span>配方 BOM</div>
+    <div class="nav-item" data-p="product" onclick="nav(this)"><span class="ico">🧋</span>产品库</div>
+    <div class="nav-item" data-p="material" onclick="nav(this)"><span class="ico">📦</span>原料档案</div>
+    <div class="nav-group">供应链</div>
+    <div class="nav-item" data-p="purchase" onclick="nav(this)"><span class="ico">🚚</span>采购单<span class="badge">5</span></div>
+    <div class="nav-item" data-p="price" onclick="nav(this)"><span class="ico">💰</span>分级价格表</div>
+    <div class="nav-item" data-p="supplier" onclick="nav(this)"><span class="ico">🏭</span>供应商</div>
+    <div class="nav-item" data-p="stock" onclick="nav(this)"><span class="ico">📉</span>门店库存</div>
+    <div class="nav-group">加盟</div>
+    <div class="nav-item" data-p="franchisee" onclick="nav(this)"><span class="ico">🤝</span>加盟商管理</div>
+    <div class="nav-item" data-p="store" onclick="nav(this)"><span class="ico">🏪</span>门店管理</div>
+    <div class="nav-group">系统</div>
+    <div class="nav-item" data-p="package" onclick="nav(this)"><span class="ico">🎫</span>套餐管理</div>
+    <div class="nav-item" data-p="perm" onclick="nav(this)"><span class="ico">🔐</span>用户与权限</div>
+  </nav>
+  <div class="side-foot"><span>👤</span> 总部管理员 · 张总</div>
+</aside>
+
+<!-- ===== 主区域 ===== -->
+<div class="main">
+  <div class="topbar">
+    <span class="crumb">山茶制造 /</span>
+    <span class="page-title" id="page-title">工作台</span>
+    <span class="spacer"></span>
+    <span class="role-switch" onclick="alert('原型提示：演示用，正式版由 tea-system 控制角色切换\n注意（P0-3 决策）：平台管理员对租户业务数据仅只读审计，不可操作')">角色：总部管理员 ▼</span>
+    <div class="avatar">👤</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ============ 工作台 ============ -->
+    <div class="page on" id="p-dashboard">
+      <div class="stat-row">
+        <div class="stat-card"><div class="l">今日营业额</div><div class="v">¥12,480</div><div class="d up">↑ 18.2% vs 昨日</div></div>
+        <div class="stat-card"><div class="l">今日订单量</div><div class="v">386</div><div class="d up">↑ 12.5% vs 昨日</div></div>
+        <div class="stat-card"><div class="l">在线门店</div><div class="v">9 / 11</div><div class="d down">2 家打烊</div></div>
+        <div class="stat-card"><div class="l">低库存原料</div><div class="v">7</div><div class="d down">3 家门店需补货</div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head"><span class="t">待办事项</span><span class="more">查看全部 ›</span></div>
+          <table>
+            <tr><th>类型</th><th>内容</th><th>状态</th><th>操作</th></tr>
+            <tr><td><span class="tag amber">采购</span></td><td>加盟商「老王茶饮」采购单 #PO20250401005</td><td>待确认</td><td><span class="link" onclick="navById('purchase')">去处理</span></td></tr>
+            <tr><td><span class="tag amber">采购</span></td><td>加盟商「李姐奶茶」采购单 #PO20250401003</td><td>待发货</td><td><span class="link" onclick="navById('purchase')">去处理</span></td></tr>
+            <tr><td><span class="tag red">退款</span></td><td>春熙路店 订单 #O20250401142 申请退款</td><td>待审核</td><td><span class="link" onclick="navById('orders')">去处理</span></td></tr>
+            <tr><td><span class="tag green">配方</span></td><td>「山茶茉莉」配方待发布审核</td><td>待审核</td><td><span class="link" onclick="navById('bom')">去审核</span></td></tr>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="t">门店经营排行 · 今日</span><span class="more">查看报表 ›</span></div>
+          <table>
+            <tr><th>排名</th><th>门店</th><th>营业额</th><th>订单</th><th>环比</th></tr>
+            <tr><td>🥇</td><td>春熙路店</td><td>¥2,860</td><td>92</td><td><span class="tag green">↑ 22%</span></td></tr>
+            <tr><td>🥈</td><td>太古里店</td><td>¥2,340</td><td>78</td><td><span class="tag green">↑ 9%</span></td></tr>
+            <tr><td>🥉</td><td>东门大桥店</td><td>¥1,920</td><td>61</td><td><span class="tag red">↓ 4%</span></td></tr>
+            <tr><td>4</td><td>建设路店（加盟）</td><td>¥1,410</td><td>47</td><td><span class="tag green">↑ 3%</span></td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="t">库存预警 · 需补货</span><span class="more" onclick="navById('stock')">库存总览 ›</span></div>
+        <table>
+          <tr><th>门店</th><th>原料</th><th>当前库存</th><th>预警阈值</th><th>库存水位</th></tr>
+          <tr><td>春熙路店</td><td>珍珠（1kg/袋）</td><td class="mono">0.3 kg</td><td class="mono">2 kg</td><td><div class="bar"><i style="width:8%"></i></div></td></tr>
+          <tr><td>太古里店</td><td>香水柠檬（个）</td><td class="mono">6 个</td><td class="mono">20 个</td><td><div class="bar"><i style="width:20%"></i></div></td></tr>
+          <tr><td>建设路店</td><td>鲜牛奶（L）</td><td class="mono">1.5 L</td><td class="mono">8 L</td><td><div class="bar"><i style="width:14%"></i></div></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ 配方 BOM ============ -->
+    <div class="page" id="p-bom">
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="field"><label>搜索配方</label><input placeholder="配方名称 / 编码"></div>
+        <div class="field"><label>状态</label><select><option>全部</option><option>已发布</option><option>草稿</option></select></div>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="openModal('bom-modal')">+ 新建配方</button>
+      </div>
+      <div class="panel">
+        <table>
+          <tr><th>配方编码</th><th>配方名称</th><th>原料数</th><th>单杯成本</th><th>版本</th><th>状态</th><th>最近更新</th><th>操作</th></tr>
+          <tr><td class="mono">F-BM-001</td><td><b>珍珠奶茶</b></td><td>5</td><td>¥4.20</td><td class="mono">v3</td><td><span class="tag green">已发布</span></td><td>2025-03-28</td><td><span class="link">编辑</span> · <span class="link">毛利试算</span></td></tr>
+          <tr><td class="mono">F-BM-002</td><td><b>杨枝甘露</b></td><td>6</td><td>¥6.80</td><td class="mono">v2</td><td><span class="tag green">已发布</span></td><td>2025-03-25</td><td><span class="link">编辑</span> · <span class="link">毛利试算</span></td></tr>
+          <tr><td class="mono">F-BM-003</td><td><b>山茶茉莉</b></td><td>4</td><td>¥3.10</td><td class="mono">v1</td><td><span class="tag amber">待发布</span></td><td>2025-04-01</td><td><span class="link">编辑</span> · <span class="link">发布</span></td></tr>
+          <tr><td class="mono">F-BM-004</td><td><b>手打柠檬茶</b></td><td>4</td><td>¥2.90</td><td class="mono">v4</td><td><span class="tag green">已发布</span></td><td>2025-03-30</td><td><span class="link">编辑</span> · <span class="link">毛利试算</span></td></tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-BOM-02 / F-BOM-03｜配方修改留版本记录，发布后不可删除（被商品引用时）</div>
+    </div>
+
+    <!-- ============ 原料档案 ============ -->
+    <div class="page" id="p-material">
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="field"><label>搜索原料</label><input placeholder="原料名称 / 编码"></div>
+        <div class="field"><label>分类</label><select><option>全部</option><option>茶底</option><option>小料</option><option>奶制品</option><option>包材</option></select></div>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="alert('原型：新建原料（F-BOM-01）')">+ 新建原料</button>
+      </div>
+      <div class="panel">
+        <table>
+          <tr><th>编码</th><th>原料名称</th><th>分类</th><th>单位</th><th>参考成本</th><th>预警阈值</th><th>状态</th></tr>
+          <tr><td class="mono">M-001</td><td>红茶</td><td>茶底</td><td>g</td><td>¥0.02/g</td><td>500 g</td><td><span class="tag green">启用</span></td></tr>
+          <tr><td class="mono">M-002</td><td>珍珠</td><td>小料</td><td>kg</td><td>¥8/kg</td><td>2 kg</td><td><span class="tag green">启用</span></td></tr>
+          <tr><td class="mono">M-003</td><td>香水柠檬</td><td>鲜果</td><td>个</td><td>¥1.8/个</td><td>20 个</td><td><span class="tag green">启用</span></td></tr>
+          <tr><td class="mono">M-004</td><td>抹茶粉</td><td>茶底</td><td>g</td><td>¥0.15/g</td><td>200 g</td><td><span class="tag gray">停用</span></td></tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-BOM-01｜预警阈值用于门店库存预警（F-INV-03）</div>
+    </div>
+
+    <!-- ============ 采购单 ============ -->
+    <div class="page" id="p-purchase">
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="field"><label>状态</label><select><option>全部</option><option>待确认</option><option>已确认</option><option>已发货</option><option>已入库</option><option>已取消</option></select></div>
+        <div class="field"><label>门店</label><select><option>全部门店</option><option>春熙路店</option><option>建设路店</option></select></div>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:var(--ink2)">共 8 单 · 待处理 5 单</span>
+      </div>
+      <div class="panel">
+        <table>
+          <tr><th>采购单号</th><th>门店</th><th>加盟商</th><th>等级</th><th>金额</th><th>状态</th><th>提交时间</th><th>操作</th></tr>
+          <tr>
+            <td class="mono">PO20250401005</td><td>建设路店</td><td>老王茶饮</td><td><span class="tag gray">B</span></td><td>¥1,260</td>
+            <td><span class="tag amber">待确认</span></td><td>04-01 10:22</td>
+            <td><span class="link" onclick="openModal('po-modal')">确认计价</span></td>
+          </tr>
+          <tr>
+            <td class="mono">PO20250401003</td><td>东门大桥店</td><td>李姐奶茶</td><td><span class="tag gray">A</span></td><td>¥2,040</td>
+            <td><span class="tag amber">待发货</span></td><td>03-31 16:40</td>
+            <td><span class="link" onclick="openModal('po-modal')">发货</span></td>
+          </tr>
+          <tr>
+            <td class="mono">PO20250328001</td><td>建设路店</td><td>老王茶饮</td><td><span class="tag gray">B</span></td><td>¥980</td>
+            <td><span class="tag green">已入库</span></td><td>03-28 09:15</td>
+            <td><span class="link" onclick="openModal('po-modal')">详情</span></td>
+          </tr>
+          <tr>
+            <td class="mono">PO20250325002</td><td>太古里店</td><td>直营</td><td><span class="tag gray">—</span></td><td>¥1,750</td>
+            <td><span class="tag green">已入库</span></td><td>03-25 11:02</td>
+            <td><span class="link" onclick="openModal('po-modal')">详情</span></td>
+          </tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-SUP-03｜计价按加盟商等级自动取分级价格（F-SUP-02），入库后门店库存增加（F-SUP-04）</div>
+    </div>
+
+    <!-- ============ 分级价格表 ============ -->
+    <div class="page" id="p-price">
+      <div class="panel">
+        <div class="panel-head"><span class="t">分级价格表（原料 × 加盟商等级）</span><span class="more">编辑价格</span></div>
+        <table>
+          <tr><th>原料</th><th>单位</th><th>A 级</th><th>B 级</th><th>C 级</th></tr>
+          <tr><td>红茶</td><td>g</td><td class="mono">¥0.018</td><td class="mono">¥0.019</td><td class="mono">¥0.020</td></tr>
+          <tr><td>珍珠</td><td>kg</td><td class="mono">¥7.2</td><td class="mono">¥7.6</td><td class="mono">¥8.0</td></tr>
+          <tr><td>香水柠檬</td><td>个</td><td class="mono">¥1.6</td><td class="mono">¥1.7</td><td class="mono">¥1.8</td></tr>
+          <tr><td>鲜牛奶</td><td>L</td><td class="mono">¥8.5</td><td class="mono">¥9.0</td><td class="mono">¥9.5</td></tr>
+          <tr><td>杯盖</td><td>个</td><td class="mono">¥0.18</td><td class="mono">¥0.20</td><td class="mono">¥0.22</td></tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-SUP-02｜等级来自加盟商等级评定（F-FRA-01），采购单自动按此表计价</div>
+    </div>
+
+    <!-- ============ 经营报表 ============ -->
+    <div class="page" id="p-report">
+      <div class="stat-row">
+        <div class="stat-card"><div class="l">近 7 日营业额</div><div class="v">¥78,420</div><div class="d up">↑ 15.4%</div></div>
+        <div class="stat-card"><div class="l">近 7 日订单量</div><div class="v">2,410</div><div class="d up">↑ 11.2%</div></div>
+        <div class="stat-card"><div class="l">客单价</div><div class="v">¥32.5</div><div class="d up">↑ 3.8%</div></div>
+        <div class="stat-card"><div class="l">会员复购率</div><div class="v">42%</div><div class="d up">↑ 5.1%</div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head"><span class="t">近 7 日营业额趋势</span><span class="more">按日/周/月</span></div>
+          <div class="chart">
+            <div class="col"><div class="cv">9.1k</div><div class="cbar" style="height:52%"></div><div class="cl">03-26</div></div>
+            <div class="col"><div class="cv">10.8k</div><div class="cbar" style="height:62%"></div><div class="cl">03-27</div></div>
+            <div class="col"><div class="cv">9.6k</div><div class="cbar" style="height:55%"></div><div class="cl">03-28</div></div>
+            <div class="col"><div class="cv">12.2k</div><div class="cbar" style="height:70%"></div><div class="cl">03-29</div></div>
+            <div class="col"><div class="cv">13.5k</div><div class="cbar" style="height:78%"></div><div class="cl">03-30</div></div>
+            <div class="col"><div class="cv">11.9k</div><div class="cbar" style="height:68%"></div><div class="cl">03-31</div></div>
+            <div class="col"><div class="cv">14.4k</div><div class="cbar" style="height:84%;background:var(--amber-deep)"></div><div class="cl">04-01</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="t">热销商品 TOP5</span><span class="more">全部</span></div>
+          <table>
+            <tr><th>#</th><th>商品</th><th>销量</th><th>占比</th></tr>
+            <tr><td>1</td><td>珍珠奶茶</td><td>1,204</td><td><div class="bar"><i style="width:88%"></i></div></td></tr>
+            <tr><td>2</td><td>杨枝甘露</td><td>886</td><td><div class="bar"><i style="width:64%"></i></div></td></tr>
+            <tr><td>3</td><td>手打柠檬茶</td><td>712</td><td><div class="bar"><i style="width:52%"></i></div></td></tr>
+            <tr><td>4</td><td>黑糖珍珠鲜奶</td><td>540</td><td><div class="bar"><i style="width:39%"></i></div></td></tr>
+            <tr><td>5</td><td>芋泥波波奶茶</td><td>412</td><td><div class="bar"><i style="width:30%"></i></div></td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-RPT-01/02｜加盟商视角仅看名下门店（数据权限）</div>
+    </div>
+
+    <!-- ============ 加盟商管理 ============ -->
+    <div class="page" id="p-franchisee">
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="field"><label>等级</label><select><option>全部</option><option>A 级</option><option>B 级</option><option>C 级</option></select></div>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="alert('原型：新建加盟商（F-FRA-01）')">+ 新增加盟商</button>
+      </div>
+      <div class="panel">
+        <table>
+          <tr><th>加盟商</th><th>等级</th><th>门店数</th><th>门店明细</th><th>本月采购额</th><th>状态</th><th>操作</th></tr>
+          <tr><td><b>老王茶饮</b></td><td><span class="tag gray">B</span></td><td>2</td><td>建设路店、双楠店</td><td>¥8,420</td><td><span class="tag green">合作中</span></td><td><span class="link" onclick="alert('原型：等级评定（F-FRA-01）')">等级评定</span></td></tr>
+          <tr><td><b>李姐奶茶</b></td><td><span class="tag green">A</span></td><td>1</td><td>东门大桥店</td><td>¥12,300</td><td><span class="tag green">合作中</span></td><td><span class="link">等级评定</span></td></tr>
+          <tr><td><b>小陈茶档</b></td><td><span class="tag gray">C</span></td><td>1</td><td>环球中心店</td><td>¥3,150</td><td><span class="tag green">合作中</span></td><td><span class="link">等级评定</span></td></tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-FRA-01/02｜等级用于分级价格表取价，一期人工评定</div>
+    </div>
+
+    <!-- ============ 套餐管理（P1-4 决策） ============ -->
+    <div class="page" id="p-package">
+      <div class="stat-row">
+        <div class="stat-card"><div class="l">套餐档位</div><div class="v">3</div><div class="d">基础/专业/旗舰</div></div>
+        <div class="stat-card"><div class="l">入驻品牌</div><div class="v">12</div><div class="d">基础 5 · 专业 5 · 旗舰 2</div></div>
+        <div class="stat-card"><div class="l">月订阅收入（估算）</div><div class="v">¥9,900</div><div class="d">按 100 家门店估算</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="t">套餐配置（sys_package，F-SYS-01）</span><span class="more">新增套餐</span></div>
+        <table>
+          <tr><th>套餐</th><th>单价(元/店/月)</th><th>门店数上限</th><th>功能开关</th><th>状态</th><th>操作</th></tr>
+          <tr><td><b>基础版</b></td><td class="mono">99</td><td class="mono">5</td><td>点单/支付/接单/基础报表</td><td><span class="tag green">启用</span></td><td><span class="link">编辑</span></td></tr>
+          <tr><td><b>专业版</b></td><td class="mono">199</td><td class="mono">20</td><td>+ 会员/优惠券/营销</td><td><span class="tag green">启用</span></td><td><span class="link">编辑</span></td></tr>
+          <tr><td><b>旗舰版</b></td><td class="mono">299</td><td class="mono">不限</td><td>+ 高级数据/多门店联动</td><td><span class="tag green">启用</span></td><td><span class="link">编辑</span></td></tr>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--ink2)">对应 PRD：F-SYS-01（P1-4 决策：三档配置化，feature_json 功能开关）｜平台端专用，总部不可见</div>
+    </div>
+
+    <!-- ============ 占位页 ============ -->
+    <div class="page" id="p-orders"><div class="placeholder"><div class="big">🧾</div>订单查询（F-ORD-02）<br><span style="font-size:13px">全品牌订单列表、状态筛选、退款审核——交互与采购单一致</span></div></div>
+    <div class="page" id="p-product"><div class="placeholder"><div class="big">🧋</div>产品库（F-PRD-01）<br><span style="font-size:13px">商品=配方+规格+建议售价；发布后进入产品库供加盟商上架</span></div></div>
+    <div class="page" id="p-supplier"><div class="placeholder"><div class="big">🏭</div>供应商管理（F-SUP-01）<br><span style="font-size:13px">供应商档案 + 可供应原料 + 参考供货价</span></div></div>
+    <div class="page" id="p-stock"><div class="placeholder"><div class="big">📉</div>门店库存总览（F-INV-01/03）<br><span style="font-size:13px">各门店原料库存台账、低库存预警、盘点修正</span></div></div>
+    <div class="page" id="p-store"><div class="placeholder"><div class="big">🏪</div>门店管理（F-FRA-02）<br><span style="font-size:13px">门店档案（加盟/直营）、营业状态、经纬度</span></div></div>
+    <div class="page" id="p-perm"><div class="placeholder"><div class="big">🔐</div>用户与权限（F-SYS-02/03）<br><span style="font-size:13px">员工账号、角色（R1–R8）、菜单/按钮权限、数据范围</span></div></div>
+
+  </div>
+</div>
+
+<!-- ===== 新建配方弹窗 ===== -->
+<div class="modal-mask" id="bom-modal">
+  <div class="modal">
+    <div class="m-title">新建配方（F-BOM-02）<span onclick="closeModal('bom-modal')">✕</span></div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="field"><label>配方名称</label><input placeholder="如：山茶茉莉"></div>
+      <div class="field"><label>配方编码</label><input placeholder="自动生成"></div>
+    </div>
+    <table style="margin-bottom:10px">
+      <tr><th>原料</th><th>用量</th><th>单位</th><th></th></tr>
+      <tr><td><select><option>红茶</option><option>茉莉绿茶</option><option>香水柠檬</option></select></td><td><input value="20" style="width:70px"></td><td>g</td><td><span class="link red">删除</span></td></tr>
+      <tr><td><select><option>冰糖浆</option><option>珍珠</option></select></td><td><input value="30" style="width:70px"></td><td>ml</td><td><span class="link red">删除</span></td></tr>
+    </table>
+    <div style="font-size:13px"><span class="link" onclick="alert('原型：添加配方行')">+ 添加原料</span></div>
+    <div style="margin-top:12px;background:var(--amber-soft);border-radius:8px;padding:10px 14px;font-size:13px">
+      单杯成本：<b style="color:var(--amber-deep)">¥3.10</b> ｜ 建议售价 ¥12 ｜ 毛利率 <b style="color:var(--green)">74.2%</b>（F-BOM-03 毛利试算）
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('bom-modal')">保存草稿</button>
+      <button class="btn" onclick="closeModal('bom-modal');alert('原型：已提交发布审核')">提交发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 采购单详情弹窗 ===== -->
+<div class="modal-mask" id="po-modal">
+  <div class="modal">
+    <div class="m-title">采购单 #PO20250401005<button class="btn ghost sm" style="margin-left:auto;background:#fff" onclick="closeModal('po-modal')">关闭</button></div>
+    <table>
+      <tr><td style="color:var(--ink2);width:90px">门店</td><td>建设路店（加盟商：老王茶饮 · B 级）</td></tr>
+      <tr><td style="color:var(--ink2)">提交时间</td><td>2025-04-01 10:22</td></tr>
+    </table>
+    <table style="margin-top:10px">
+      <tr><th>原料</th><th>数量</th><th>单价（按B级）</th><th>小计</th></tr>
+      <tr><td>珍珠</td><td class="mono">50 kg</td><td class="mono">¥7.6</td><td class="mono">¥380</td></tr>
+      <tr><td>鲜牛奶</td><td class="mono">80 L</td><td class="mono">¥9.0</td><td class="mono">¥720</td></tr>
+      <tr><td>杯盖</td><td class="mono">1,000 个</td><td class="mono">¥0.22</td><td class="mono">¥220</td></tr>
+      <tr><td colspan="3" style="text-align:right;font-weight:700">合计</td><td class="mono" style="font-weight:700">¥1,320</td></tr>
+    </table>
+    <div style="margin-top:10px;font-size:12px;color:var(--ink2)">计价规则：按加盟商等级自动取分级价格表（F-SUP-02），确认后不可改价</div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('po-modal')">退回</button>
+      <button class="btn" onclick="closeModal('po-modal');alert('原型：已确认计价，进入待发货')">确认计价</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const titles={dashboard:'工作台',report:'经营报表',orders:'订单查询',bom:'配方 BOM',product:'产品库',material:'原料档案',purchase:'采购单',price:'分级价格表',supplier:'供应商',stock:'门店库存',franchisee:'加盟商管理',store:'门店管理',package:'套餐管理',perm:'用户与权限'};
+  function nav(el){
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('on'));
+    el.classList.add('on');
+    showPage(el.dataset.p);
+  }
+  function navById(id){
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.p===id));
+    showPage(id);
+  }
+  function showPage(id){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+    const page=document.getElementById('p-'+id);
+    if(page)page.classList.add('on');
+    document.getElementById('page-title').textContent=titles[id]||'';
+    document.querySelector('.content').scrollTop=0;
+  }
+  function openModal(id){document.getElementById(id).classList.add('show');}
+  function closeModal(id){document.getElementById(id).classList.remove('show');}
+  document.querySelectorAll('.modal-mask').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+</script>
+</body>
+</html>

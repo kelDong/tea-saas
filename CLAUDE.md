@@ -44,7 +44,6 @@
 
 ## 环境注意事项（本机实测）
 
-- **无本机 MySQL/Redis/Docker**：只能 `mvn compile`，无法启动运行；SQL 已写好（`backend-api/sql/init/`）待有环境时执行
 - **Maven 本地仓库在 `E:\工具\apache-maven-3.9.9\maven-repository`**（中文路径）
 - **PowerShell 是 5.1 引擎**：`.ps1` 脚本需 UTF-8 **带 BOM**；不支持 `-AsHashtable`/`utf8NoBOM`
 - MyBatis-Plus 3.5.12：jsqlparser 需单独依赖 `mybatis-plus-jsqlparser`（已配好）
