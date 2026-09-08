@@ -1,4 +1,4 @@
-# 茶饮 SaaS 后端配置（本地默认；生产配置用环境变量覆盖，密钥禁止入库）
+# 茶饮 SaaS 后端配置（本地默认指向 Docker 容器 tea-mysql/tea-redis；生产用环境变量覆盖，密钥禁止入库）
 server:
   port: 8080
   servlet:
@@ -8,7 +8,8 @@ spring:
   application:
     name: tea-saas
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:tea_saas}?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
+    # tea-mysql 容器映射宿主 3307（3306 被本机 phpStudy MySQL5.7 占用）
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/${MYSQL_DB:tea_saas}?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
