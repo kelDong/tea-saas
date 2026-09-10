@@ -1,11 +1,13 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M3 批次 2 启动（商品/库存模块开工前）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M3 批次 2 收官（商品/库存已提交，批次 3 订单+支付开工前）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+0b526f5 feat(product/inventory): 商品/上架/库存按契约落地——可售判定13.2实时SQL+下单扣减13.1条件更新幂等+盘点留痕+采购入库联动 F-PRD-01~03/F-INV-01~03
+37a5c4e docs(handoff): 进度快照更新至M3批次2启动——批次1三模块+framework修复已入档
 06aa282 chore(tools): 飞书任务清单同步——M3批次1三任务完成记录（BOM/加盟/供应链）
 754668b fix(framework): 补@MapperScan跨模块mapper注册——主类包外扫描盲区致启动失败（M2遗留，冒烟暴露） M3
 7f3f3b5 feat(supply): 供应商/分级价格/采购单——等级计价快照+条件更新状态机（R6发起P1-1/R4确认发货/R6R7入库） F-SUP-01~04
@@ -32,13 +34,22 @@
 | 供应链 | F-SUP-01~04 | 7f3f3b5 | t100015 ✅ |
 | framework 修复 | @MapperScan 跨模块注册 | 754668b | — |
 
-### M3 批次 2 —— 🔨 进行中（本快照写入时刚开工）
+### M3 批次 2 —— ✅ 已提交（2026-09-10）
 
-- **范围**：tea-product（F-PRD-01/02/03，10 接口）+ tea-inventory（F-INV-01/02/03，4 接口）
-- **表**：`prd_category / prd_product / prd_product_spec / prd_product_spec_option / prd_listing` + `inv_store_material_stock / inv_stock_log`
-- **重点**：可售判定实时 SQL（数据库设计 13.2）、下单扣减条件更新+乐观锁（13.1，为 tea-order 预留 deduct/restore 服务）、盘点修正写流水（bizType=5）、Redis 预扣
-- **注意**：`stock_qty/change_qty` 是 DECIMAL(10,3) 数量字段 → 实体用 BigDecimal（红线只禁金额用 BigDecimal）；`prd_listing.sellable_flag` 一期不落地，走实时 SQL
-- **后续批次**：批次3 = 订单+支付（F-ORD/F-PAY，库存扣减的调用方）；批次4 = 会员/营销/报表（F-MEM/F-MKT/F-RPT）；前端可随后端可用接口逐模块替换 `Placeholder.vue`
+| 模块 | 接口 | commit | 飞书 |
+|---|---|---|---|
+| 商品（分类/商品/规格/上架/C端商品） | F-PRD-01/02/03 | 0b526f5 | t100016 ✅ |
+| 库存（台账/盘点/预警/总览/扣减内核） | F-INV-01/02/03 | 0b526f5 | t100017 ✅ |
+
+**落地要点**（细节见 commit diff）：
+- 可售判定：`PrdListingMapper.xml` 实时 SQL（13.2，`NOT EXISTS` 配方明细缺口）；`sellable_flag` 一期不落地
+- 扣减内核：`InvStockService`（tea-inventory）——deduct/restore/inbound，`biz_no+biz_type` 查日志幂等 + 条件更新 `stock_qty >= need`（13.1）；**批次 3 tea-order 直接注入调用，勿重复造**
+- 盘点：实盘覆盖 + version+1 + 流水留痕（bizType=5，StockBizType 常量 1~5）
+- 采购入库联动：`SupPurchaseOrderServiceImpl.receive()` 已接 `invStockService.inbound(...)`（批次 1 遗留 TODO 清偿）
+- C 端公开接口：`GET /api/app/v1/stores/{id}/products`（X-Tenant-Id 注入，白名单已加）
+- 数量字段 DECIMAL(10,3) → BigDecimal（红线只禁**金额**用 BigDecimal）；金额一律 Integer 分
+- 模块依赖新增：tea-product +tea-franchise；tea-supply +tea-inventory（均无环）
+- 删除 4 个无契约脚手架 Controller（规格/选项×2、库存台账/流水×2），端点统一收敛到契约路径
 
 ## 3. 关键实现事实（接手者容易踩的坑）
 
@@ -54,8 +65,8 @@
 
 ## 4. 接手后的建议顺序
 
-1. 完成批次 2（若未完成）：生成器打底 → 手工补业务逻辑（本文件 §2 批次 2 的重点项）
-2. 批次 3：订单+支付（调用库存 deduct/restore；支付回调本地表+定时重试，不引 MQ）
+1. 批次 3：订单+支付（F-ORD/F-PAY）——下单扣减直接注入 `InvStockService.deduct`（幂等已内建）；超时/退款走 restore；支付回调本地表+定时重试，不引 MQ
+2. 批次 4：会员/营销/报表（F-MEM/F-MKT/F-RPT）
 3. 前端逐模块替换 `views/error/Placeholder.vue`（`component` 字段如 `product/Materials` → `src/views/product/Materials.vue`，动态路由自动匹配）
 4. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办
 
