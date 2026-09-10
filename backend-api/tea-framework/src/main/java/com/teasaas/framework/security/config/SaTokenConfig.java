@@ -24,6 +24,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
             "/api/v1/auth/captcha",
             "/api/app/v1/auth/**",
             "/api/app/v1/stores/nearby",
+            "/api/app/v1/stores/*/products",
             "/api/notify/**",
             "/api/v3/api-docs/**",
             "/swagger-ui/**",

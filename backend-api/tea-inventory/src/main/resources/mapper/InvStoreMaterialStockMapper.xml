@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teasaas.inventory.mapper.InvStoreMaterialStockMapper">
+
+    <!-- 低库存列表（F-INV-03）：stock_qty < 原料预警阈值 -->
+    <select id="selectWarnings" resultType="com.teasaas.inventory.vo.StockWarningVO">
+        SELECT s.store_id      AS storeId,
+               s.material_id   AS materialId,
+               m.material_code AS materialCode,
+               m.material_name AS materialName,
+               m.unit          AS unit,
+               s.stock_qty     AS stockQty,
+               m.warn_threshold AS warnThreshold,
+               (m.warn_threshold - s.stock_qty) AS gap
+          FROM inv_store_material_stock s
+          JOIN bom_material m ON m.id = s.material_id
+         WHERE m.warn_threshold IS NOT NULL
+           AND s.stock_qty &lt; m.warn_threshold
+        <if test="storeId != null">
+           AND s.store_id = #{storeId}
+        </if>
+         ORDER BY gap DESC, s.store_id, m.material_code
+    </select>
+
+    <!-- 总部库存总览（F-INV-03）：按原料聚合全租户库存 -->
+    <select id="selectSummary" resultType="com.teasaas.inventory.vo.InventorySummaryVO">
+        SELECT s.material_id   AS materialId,
+               m.material_code AS materialCode,
+               m.material_name AS materialName,
+               m.unit          AS unit,
+               SUM(s.stock_qty) AS totalQty,
+               COUNT(*)        AS storeCount
+          FROM inv_store_material_stock s
+          JOIN bom_material m ON m.id = s.material_id
+         GROUP BY s.material_id, m.material_code, m.material_name, m.unit
+         ORDER BY totalQty DESC
+    </select>
+</mapper>

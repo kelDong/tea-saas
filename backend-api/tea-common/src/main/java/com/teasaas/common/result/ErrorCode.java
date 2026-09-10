@@ -25,6 +25,11 @@ public enum ErrorCode {
     MATERIAL_NOT_FOUND(20101, "原料不存在"),
     FORMULA_NOT_FOUND(20201, "配方不存在"),
     PRODUCT_NOT_FOUND(20301, "商品不存在"),
+    PRODUCT_NOT_PUBLISHED(20302, "商品未发布，不可上架"),
+    CATEGORY_NOT_FOUND(20303, "商品分类不存在"),
+    LISTING_NOT_FOUND(20401, "上架记录不存在"),
+    LISTING_DUPLICATED(20402, "该商品已在本店上架"),
+    SALE_PRICE_EXCEED_LIMIT(20403, "本店售价不得高于总部建议售价"),
 
     /* 03 订单 */
     ORDER_NOT_FOUND(30101, "订单不存在"),

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teasaas.product.mapper.PrdListingMapper">
+
+    <!-- 可售判定子查询（数据库设计 13.2）：该商品配任一原料 无库存或 用量>库存 即缺料 -->
+    <sql id="shortageExists">
+        EXISTS (
+            SELECT 1
+              FROM bom_formula_item fi
+              LEFT JOIN inv_store_material_stock s
+                     ON s.store_id = l.store_id
+                    AND s.material_id = fi.material_id
+             WHERE fi.formula_id = p.formula_id
+               AND (s.stock_qty IS NULL OR s.stock_qty &lt; fi.qty)
+        )
+    </sql>
+
+    <!-- 本店上架列表（sellable 实时计算；tenant_id 由租户插件自动追加） -->
+    <select id="selectStoreList" resultType="com.teasaas.product.vo.ListingVO">
+        SELECT l.id,
+               l.store_id,
+               l.product_id,
+               p.product_code,
+               p.product_name,
+               p.image,
+               l.sale_price,
+               p.suggest_price,
+               l.status,
+               CASE WHEN <include refid="shortageExists"/> THEN 0 ELSE 1 END AS sellable
+          FROM prd_listing l
+          JOIN prd_product p ON p.id = l.product_id
+         WHERE l.store_id = #{storeId}
+        <if test="status != null">
+           AND l.status = #{status}
+        </if>
+         ORDER BY l.sort, l.id
+    </select>
+
+    <!-- 缺料明细（可售校验：列出每个上架商品不满足的原料与缺口） -->
+    <select id="selectShortages" resultType="com.teasaas.product.vo.ShortageRowVO">
+        SELECT l.id            AS listingId,
+               fi.material_id  AS materialId,
+               m.material_name AS materialName,
+               m.unit          AS unit,
+               fi.qty          AS needQty,
+               IFNULL(s.stock_qty, 0) AS stockQty
+          FROM prd_listing l
+          JOIN prd_product p ON p.id = l.product_id
+          JOIN bom_formula_item fi ON fi.formula_id = p.formula_id
+          JOIN bom_material m ON m.id = fi.material_id
+          LEFT JOIN inv_store_material_stock s
+                 ON s.store_id = l.store_id
+                AND s.material_id = fi.material_id
+         WHERE l.id IN
+        <foreach collection="listingIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+           AND (s.stock_qty IS NULL OR s.stock_qty &lt; fi.qty)
+         ORDER BY l.id, fi.sort, fi.id
+    </select>
+
+    <!-- C 端门店可售商品（仅上架+已发布+原料充足，F-PRD-03） -->
+    <select id="selectAppProducts" resultType="com.teasaas.product.vo.AppProductVO">
+        SELECT p.id           AS productId,
+               l.id           AS listingId,
+               p.product_name AS productName,
+               p.category_id  AS categoryId,
+               l.sale_price   AS salePrice,
+               p.image        AS image,
+               p.description  AS description
+          FROM prd_listing l
+          JOIN prd_product p ON p.id = l.product_id
+         WHERE l.store_id = #{storeId}
+           AND l.status = 1
+           AND p.publish_status = 1
+        <if test="categoryId != null">
+           AND p.category_id = #{categoryId}
+        </if>
+           AND NOT <include refid="shortageExists"/>
+         ORDER BY l.sort, l.id
+    </select>
+</mapper>

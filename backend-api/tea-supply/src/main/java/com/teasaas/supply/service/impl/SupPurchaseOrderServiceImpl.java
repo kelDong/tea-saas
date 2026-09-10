@@ -11,6 +11,9 @@ import com.teasaas.franchise.entity.FraStore;
 import com.teasaas.franchise.mapper.FraFranchiseeMapper;
 import com.teasaas.franchise.mapper.FraStoreMapper;
 import com.teasaas.framework.security.context.SecurityUtils;
+import com.teasaas.inventory.constant.StockBizType;
+import com.teasaas.inventory.dto.StockItemDTO;
+import com.teasaas.inventory.service.InvStockService;
 import com.teasaas.supply.dto.PurchaseOrderCreateDTO;
 import com.teasaas.supply.dto.PurchaseOrderItemDTO;
 import com.teasaas.supply.entity.SupPurchaseOrder;
@@ -76,6 +79,7 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     private final SysUserStoreMapper sysUserStoreMapper;
     private final FraStoreMapper fraStoreMapper;
     private final FraFranchiseeMapper fraFranchiseeMapper;
+    private final InvStockService invStockService;
 
     // ==================== 查询 ====================
 
@@ -233,7 +237,18 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
                 .eq(SupPurchaseOrder::getId, id)
                 .eq(SupPurchaseOrder::getStatus, STATUS_SHIPPED));
         checkTransition(affected);
-        // TODO F-SUP-04 批次2：更新 inv_store_material_stock +qty 并写 inv_stock_log(bizType=4 采购入库)
+        // F-SUP-04 入库联动（数据库设计 13.3）：库存 +qty 并写流水 bizType=4（bizNo 幂等）
+        List<SupPurchaseOrderItem> items = supPurchaseOrderItemMapper.selectList(
+                new LambdaQueryWrapper<SupPurchaseOrderItem>()
+                        .eq(SupPurchaseOrderItem::getOrderId, id));
+        invStockService.inbound(order.getStoreId(),
+                items.stream().map(item -> {
+                    StockItemDTO stockItem = new StockItemDTO();
+                    stockItem.setMaterialId(item.getMaterialId());
+                    stockItem.setQty(item.getQty());
+                    return stockItem;
+                }).toList(),
+                StockBizType.PURCHASE_IN, order.getOrderNo());
     }
 
     @Override

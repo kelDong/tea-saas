@@ -32,6 +32,10 @@
             <artifactId>tea-bom</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-franchise</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
