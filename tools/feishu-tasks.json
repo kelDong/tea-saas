@@ -1,4 +1,10 @@
 {
+    "并行:微信支付+小程序资质申请":  {
+                            "status":  "open",
+                            "task_id":  "t100011",
+                            "guid":  "67164597-4adf-4647-9d2b-48921f604545",
+                            "created":  "2026-09-02 08:14"
+                        },
     "M2:SQL 初始化脚本":  {
                          "task_id":  "t100007",
                          "guid":  "51772599-b346-4932-a934-44a6eda04af9",
@@ -13,46 +19,6 @@
                                "status":  "completed",
                                "completed":  "2026-09-03 16:48"
                            },
-    "M2:代码生成器":  {
-                     "task_id":  "t100008",
-                     "guid":  "c8e2bfd9-e4ad-47da-a764-597b2b69f44c",
-                     "created":  "2026-09-02 08:14",
-                     "status":  "completed",
-                     "completed":  "2026-09-08 17:21"
-                 },
-    "M3:批次1-BOM模块（F-BOM-01/02/03）":  {
-                                         "task_id":  "t100013",
-                                         "guid":  "5534da48-15df-4273-b5ba-7997a2006bf8",
-                                         "created":  "2026-09-09 08:07",
-                                         "status":  "completed",
-                                         "completed":  "2026-09-09 08:17"
-                                     },
-    "M3:批次1-加盟门店模块（F-FRA-01/02）":  {
-                                       "task_id":  "t100014",
-                                       "guid":  "6794e70c-d74f-43a9-aced-dbac79945464",
-                                       "created":  "2026-09-09 08:07",
-                                       "status":  "completed",
-                                       "completed":  "2026-09-09 08:17"
-                                   },
-    "并行:微信支付+小程序资质申请":  {
-                            "status":  "open",
-                            "task_id":  "t100011",
-                            "guid":  "67164597-4adf-4647-9d2b-48921f604545",
-                            "created":  "2026-09-02 08:14"
-                        },
-    "并行:种子品牌访谈":  {
-                      "status":  "open",
-                      "task_id":  "t100010",
-                      "guid":  "3cca9717-0cb0-4562-abd2-ad7a96a89cc2",
-                      "created":  "2026-09-02 08:14"
-                  },
-    "M3:批次1-供应链模块（F-SUP-01~04）":  {
-                                      "task_id":  "t100015",
-                                      "guid":  "51a43b8d-4db6-48cc-b9ad-b43aacae98fc",
-                                      "created":  "2026-09-09 08:07",
-                                      "status":  "completed",
-                                      "completed":  "2026-09-09 08:17"
-                                  },
     "测试:流程验证（可删）":  {
                         "task_id":  "t100012",
                         "guid":  "e4c35dc1-333e-466a-b866-35d5b2b5426b",
@@ -60,11 +26,38 @@
                         "status":  "completed",
                         "completed":  "2026-09-02 08:20"
                     },
+    "M3:批次2-商品模块（F-PRD-01~03）":  {
+                                     "task_id":  "t100016",
+                                     "guid":  "ff3f015a-f400-40e8-9743-101f25cb4200",
+                                     "created":  "2026-09-10 16:52",
+                                     "status":  "completed",
+                                     "completed":  "2026-09-10 16:52"
+                                 },
+    "M3:批次2-库存模块（F-INV-01~03）":  {
+                                     "task_id":  "t100017",
+                                     "guid":  "29428548-8e4d-41c2-957e-b55dcb2fe14f",
+                                     "created":  "2026-09-10 16:52",
+                                     "status":  "completed",
+                                     "completed":  "2026-09-10 16:52"
+                                 },
+    "并行:种子品牌访谈":  {
+                      "status":  "open",
+                      "task_id":  "t100010",
+                      "guid":  "3cca9717-0cb0-4562-abd2-ad7a96a89cc2",
+                      "created":  "2026-09-02 08:14"
+                  },
+    "M2:代码生成器":  {
+                     "task_id":  "t100008",
+                     "guid":  "c8e2bfd9-e4ad-47da-a764-597b2b69f44c",
+                     "created":  "2026-09-02 08:14",
+                     "status":  "completed",
+                     "completed":  "2026-09-07 14:17"
+                 },
     "M2:admin-web 前端骨架":  {
                               "task_id":  "t100009",
                               "guid":  "6e090a7f-12ce-4986-a45b-96f5688fdfe3",
                               "created":  "2026-09-02 08:14",
                               "status":  "completed",
-                              "completed":  "2026-09-08 17:21"
+                              "completed":  "2026-09-07 16:07"
                           }
 }
