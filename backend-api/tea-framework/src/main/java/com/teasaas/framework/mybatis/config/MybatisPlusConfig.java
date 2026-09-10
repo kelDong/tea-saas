@@ -10,7 +10,9 @@ import com.teasaas.framework.tenant.TenantContext;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.NullValue;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.reflection.MetaObject;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -21,8 +23,12 @@ import java.util.Set;
  * MyBatis-Plus 配置（多租户核心，数据库设计第 14 章）
  * 1. TenantLineInnerInterceptor：所有 SQL 自动追加 tenant_id = ?
  * 2. PaginationInnerInterceptor：分页插件（规范 5.2：禁止内存分页）
+ * 3. @MapperScan：主类在 com.teasaas.server 包，@Mapper 自动扫描覆盖不到其他模块的
+ *    mapper 包（M2 遗留缺陷，首次启动冒烟暴露）；限定 annotationClass=@Mapper 只注册
+ *    mapper 接口，业务接口不受影响，后续新增模块无需改此配置
  */
 @Configuration
+@MapperScan(basePackages = "com.teasaas", annotationClass = Mapper.class)
 public class MybatisPlusConfig {
 
     /** 不参与租户隔离的表（平台表，数据库设计 14.2） */
