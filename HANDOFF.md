@@ -1,69 +1,64 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M2 收官（admin-web 前端骨架完成并提交）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M3 批次 2 启动（商品/库存模块开工前）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
-（本次）feat(admin-web): 管理后台前端骨架——登录/动态路由/v-permission F-SYS-03
-（本次）fix(framework): 全局异常处理补 NotLoginException→HTTP 401 F-SYS-03
-2b78e41 feat(generator): 离线DDL代码生成器——四件套生成+BOM三表落地验证 M2
-4189d08 docs(diagram): 系统架构图——Excalidraw可编辑格式（三端+统一接入+15模块+存储）
-6a5f5b9 docs: AI交接包——CLAUDE.md入口+HANDOFF状态快照+generator模块骨架
-34b9fb2 feat(system): 用户/角色管理+操作日志切面+admin密码初始化 F-SYS-02/04
+06aa282 chore(tools): 飞书任务清单同步——M3批次1三任务完成记录（BOM/加盟/供应链）
+754668b fix(framework): 补@MapperScan跨模块mapper注册——主类包外扫描盲区致启动失败（M2遗留，冒烟暴露） M3
+7f3f3b5 feat(supply): 供应商/分级价格/采购单——等级计价快照+条件更新状态机（R6发起P1-1/R4确认发货/R6R7入库） F-SUP-01~04
+96cdb60 feat(franchise): 加盟商/门店档案+开通账号R6绑定+C端附近门店（X-Tenant-Id手动租户注入） F-FRA-01/02
+913a5e8 feat(bom): 原料/配方/毛利试算按契约落地——版本递增/明细全量重绑/复制递推/发布 F-BOM-01/02/03
+（更早：5f1dc72 docs入库 / 2b78e41 generator / 34b9fb2 tea-system / admin-web 骨架等）
 ```
 
-未提交内容：`CLAUDE.md`（本地有改动，属 Owner 手笔，由 Owner 决定何时提交）。
+## 2. 里程碑进度
 
-## 2. M2 进度（对照飞书任务清单）——**全部完成，M2 收官** 🎉
+### M2 —— ✅ 全部收官
 
 | 任务 | 状态 | 飞书 task_id |
 |---|---|---|
-| Maven 15 模块骨架 | ✅ 已提交 | （未单独建任务） |
-| SQL 初始化（39 表） | ✅ 已提交 | t100007 ✅ |
-| tea-system（登录/RBAC/用户/角色/日志/密码Runner） | ✅ 已提交 | t100001 ✅ |
-| 代码生成器 | ✅ 已提交（见 §3） | t100008 ✅ |
-| admin-web 前端骨架 | ✅ 已提交（见 §3.5） | t100009 ✅ |
+| Maven 15 模块骨架 / SQL 39 表 / tea-system / 生成器 / admin-web 骨架 | ✅ 已提交 | t100001/t100007/t100008/t100009 ✅ |
 | 并行：种子访谈 + 微信资质 | ⬜ Owner 侧（提醒） | t100010/t100011 |
 
-## 3. 已完成：代码生成器（tea-generator）✅
+### M3 批次 1 —— ✅ 已提交（2026-09-09）
 
-- 纯 JDK 零依赖（JUL 日志，规避 pre-commit 的 System.out.println 禁令），`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=bom_*` 直接运行
-- 结构：`CodeGenerator`（main/写入/跳过已存在）+ `core`（SqlDdlParser/TableMeta/ColumnMeta/TypeMapping/ModuleRouter/NameUtil）+ `render/Templates`
-- 表前缀路由：`sys_/tenant→tea-system`、`fra_→tea-franchise`、`sup_→tea-supply`、`bom_→tea-bom`、`prd_→tea-product`、`inv_→tea-inventory`、`ord_→tea-order`、`pay_→tea-payment`、`mem_→tea-member`、`mkt_→tea-marketing`
-- 类型映射：bigint→Long、varchar→String、int/tinyint→Integer、decimal→BigDecimal、datetime→LocalDateTime、date→LocalDate、time→LocalTime、json→String
-- 通用字段全含的表继承 `BaseEntity`（如 bom_material/bom_formula）；关联/流水表平铺（如 bom_formula_item，含 tenant_id/create_time 显式赋值）
-- 已验证：BOM 三表 18 文件生成 + 全量 `mvn compile` 通过；`--tables=sys_user` 验证跳过逻辑（5 个已有文件被保护）
-- 注意：DDL 表级注释是 `COMMENT='x'`（带等号）、列级是 `COMMENT 'x'`（带空格），解析正则已兼容两者
-- 规范 14 的"基础单测骨架"暂不生成（模块无 test 依赖设施，M3 随业务逻辑补）
+| 模块 | 接口 | commit | 飞书 |
+|---|---|---|---|
+| BOM | F-BOM-01/02/03 | 913a5e8 | t100013 ✅ |
+| 加盟门店 | F-FRA-01/02 | 96cdb60 | t100014 ✅ |
+| 供应链 | F-SUP-01~04 | 7f3f3b5 | t100015 ✅ |
+| framework 修复 | @MapperScan 跨模块注册 | 754668b | — |
 
-## 3.5 已完成：admin-web 前端骨架 ✅
+### M3 批次 2 —— 🔨 进行中（本快照写入时刚开工）
 
-- Vite 6 + Vue 3.5 + TS 5.7（strict）+ Element Plus 2.9（全量引入）+ Pinia 2 + vue-router 4；`npm run dev`（5173，代理 `/api`→`localhost:8080`），`npm run build` = vue-tsc 类型检查 + vite 构建（已通过）
-- 契约对接 `docs/茶饮SaaS-接口需求.md` F-SYS-03：登录 `/auth/login`（验证码一期可选，拉取失败不阻塞）、`/auth/captcha`、`/auth/logout`、`/auth/menus`
-- `utils/request.ts`：axios 封装，解包 `Result<T>`（code=0 成功）；业务码 2 或 HTTP 401 → 清 token 硬跳 `/login`；token 持久化 localStorage `teasaas:token` / `teasaas:token-name`（tokenName 用 LoginVO 动态值，默认 satoken）
-- 动态路由（`router/dynamic.ts`）：菜单树是唯一路由来源；目录 path 绝对、叶子 path 相对，`component` 字段按 `/{component}.vue` 后缀匹配 `src/views/**`；**未实现的菜单回落到 `views/error/Placeholder.vue`**（M3 逐模块替换为真页面）；守卫首次进入拉菜单 → `addRoute('layout', ...)` → 重试导航
-- `v-permission` 指令（`directive/permission.ts`）：无权限码直接移除元素；演示页 `views/platform/Dashboard.vue`
-- 配套后端补丁：`GlobalExceptionHandler` 增加 `NotLoginException` → HTTP 401 + 业务码 2（SaTokenConfig 注释里声明的设计意图，前端 401 跳转依赖它）
-- 已知非阻塞项：Element Plus 全量引入致主 chunk ~1.1MB（M3 可做 manualChunks/按需引入）；`/auth/me` 接口前端暂未使用
+- **范围**：tea-product（F-PRD-01/02/03，10 接口）+ tea-inventory（F-INV-01/02/03，4 接口）
+- **表**：`prd_category / prd_product / prd_product_spec / prd_product_spec_option / prd_listing` + `inv_store_material_stock / inv_stock_log`
+- **重点**：可售判定实时 SQL（数据库设计 13.2）、下单扣减条件更新+乐观锁（13.1，为 tea-order 预留 deduct/restore 服务）、盘点修正写流水（bizType=5）、Redis 预扣
+- **注意**：`stock_qty/change_qty` 是 DECIMAL(10,3) 数量字段 → 实体用 BigDecimal（红线只禁金额用 BigDecimal）；`prd_listing.sellable_flag` 一期不落地，走实时 SQL
+- **后续批次**：批次3 = 订单+支付（F-ORD/F-PAY，库存扣减的调用方）；批次4 = 会员/营销/报表（F-MEM/F-MKT/F-RPT）；前端可随后端可用接口逐模块替换 `Placeholder.vue`
 
-## 4. 关键实现事实（接手者容易踩的坑）
+## 3. 关键实现事实（接手者容易踩的坑）
 
-1. **登录查用户的租户绕过**：`SysUserMapper.selectByUsernameForLogin` 带 `@InterceptorIgnore` + 注释声明——业务查询禁止模仿（规范 6.1）
-2. **实体 id**：`IdType.ASSIGN_ID`；平台表（tenant/sys_package/sys_menu）与关联/流水表不继承 BaseEntity（字段与表严格对齐）
-3. **飞书同步**：`E:\DeepSeekHarness\tools\feishu-task.ps1`（create/complete/list，PS5.1 兼容版）；本地映射 `tools/feishu-tasks.json`；凭据在 `tools/feishu.config.json`（**禁止提交**）
-4. **pre-commit hook**：`tea-saas/.git/hooks/pre-commit`（克隆仓库需重装；内容可从本仓库 hook 或 `.harness/skills/code-review-commit/SKILL.md` 恢复）
-5. **admin 密码**：首次部署设 `TEA_ADMIN_PASSWORD` 环境变量启动，自动替换 SQL 占位哈希（AdminPasswordInitRunner）
-6. **MySQL/Redis 均已就绪（2026-09-08，Docker）**：`tea-mysql`（`mysql:8`=8.4.11 LTS，宿主 **3307**→3306，root/root，数据卷 `tea-mysql-data`）+ `tea-redis`（`redis:7`，宿主 **6379** 无密码，数据卷 `tea-redis-data`，AOF 开启），均 `--restart unless-stopped` 随 Docker Desktop 自启。`tea_saas` 39 表+种子数据已初始化并做宿主机侧连通验证。3306 是 phpStudy 的 MySQL 5.7（旧项目在用；5.7 跑不了 `02_data.sql` 的窗口函数，禁止用于本项目）。**application.yml 本地默认已直连两容器（MYSQL_PORT 默认 3307），后端免环境变量直接启动**；验证码功能现已可用
-7. **前端 npm 陷阱**：`npm install --prefix <dir>` 在本机会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11，registry 走 npmmirror
+1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
+2. **登录查用户的租户绕过**：`SysUserMapper.selectByUsernameForLogin` 带 `@InterceptorIgnore` + 注释声明——业务查询禁止模仿（规范 6.1）
+3. **C 端公开接口租户注入**：X-Tenant-Id 请求头 + `TenantContext` 手动 set（参考 franchise 附近门店实现）；SaTokenConfig 白名单放行 `/api/app/**`
+4. **实体 id**：`IdType.ASSIGN_ID`；平台表与关联/流水表不继承 BaseEntity（字段与表严格对齐）；生成器按 DDL 自动路由模块/判断继承
+5. **飞书同步**：`E:\DeepSeekHarness\tools\feishu-task.ps1`（create/complete/list，PS5.1 兼容）；本地映射 `tools/feishu-tasks.json`；凭据 `tools/feishu.config.json`（**禁止提交**）
+6. **pre-commit hook**：`tea-saas/.git/hooks/pre-commit`（克隆需重装；内容可从 `.harness/skills/code-review-commit/SKILL.md` 恢复）
+7. **MySQL/Redis 均已就绪（Docker）**：`tea-mysql`（8.4.11，宿主 **3307**）+ `tea-redis`（宿主 **6379** 无密码）；`tea_saas` 39 表+种子已初始化；application.yml 本地默认直连，后端免环境变量启动。3306 是 phpStudy 的 MySQL 5.7（跑不了 02_data.sql 窗口函数，禁止用于本项目）
+8. **前端 npm 陷阱**：`npm install --prefix` 会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11 / npmmirror
+9. **代码生成器**：`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=prd_*,inv_*`（先 `mvn -pl tea-generator -am package -DskipTests` 或复用已编译 classes；跳过已存在文件）
 
-## 5. 接手后的建议顺序（M3 起）
+## 4. 接手后的建议顺序
 
-1. M3 按 `.harness/agents/owner.md` 的"分阶段并行"策略：后端业务模块用生成器打底（§3）+ 手工补业务逻辑（库存扣减/状态机/采购计价是重点，参考数据库设计第 13 章 SQL）
-2. 前端逐模块把 `views/error/Placeholder.vue` 替换为真页面：新建 `src/views/<目录>/<页面>.vue` 即被动态路由自动匹配（component 字段如 `product/Materials` → `src/views/product/Materials.vue`），无需改路由代码
-3. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办
+1. 完成批次 2（若未完成）：生成器打底 → 手工补业务逻辑（本文件 §2 批次 2 的重点项）
+2. 批次 3：订单+支付（调用库存 deduct/restore；支付回调本地表+定时重试，不引 MQ）
+3. 前端逐模块替换 `views/error/Placeholder.vue`（`component` 字段如 `product/Materials` → `src/views/product/Materials.vue`，动态路由自动匹配）
+4. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办
 
-## 6. 权威文档索引（冲突时以此为准）
+## 5. 权威文档索引（冲突时以此为准）
 
 `docs/`（人读权威）> `.harness/`（AI 投影）> 本文件（状态快照，会过时）
