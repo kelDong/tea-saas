@@ -1,31 +1,4 @@
 {
-    "并行:微信支付+小程序资质申请":  {
-                            "status":  "open",
-                            "task_id":  "t100011",
-                            "guid":  "67164597-4adf-4647-9d2b-48921f604545",
-                            "created":  "2026-09-02 08:14"
-                        },
-    "M2:SQL 初始化脚本":  {
-                         "task_id":  "t100007",
-                         "guid":  "51772599-b346-4932-a934-44a6eda04af9",
-                         "created":  "2026-09-02 08:13",
-                         "status":  "completed",
-                         "completed":  "2026-09-03 16:31"
-                     },
-    "M2:tea-system 模块落地":  {
-                               "task_id":  "t100001",
-                               "guid":  "7cbf8e9e-7840-4fb3-9e28-e7701e1f1dc2",
-                               "created":  "2026-09-02 08:15",
-                               "status":  "completed",
-                               "completed":  "2026-09-03 16:48"
-                           },
-    "M3:批次3-订单模块（F-ORD-01~04）":  {
-                                     "task_id":  "t100018",
-                                     "guid":  "1fb67eee-a100-407a-baf7-f913e16a0c7d",
-                                     "created":  "2026-09-11 08:48",
-                                     "status":  "completed",
-                                     "completed":  "2026-09-11 08:48"
-                                 },
     "M2:admin-web 前端骨架":  {
                               "task_id":  "t100009",
                               "guid":  "6e090a7f-12ce-4986-a45b-96f5688fdfe3",
@@ -33,23 +6,22 @@
                               "status":  "completed",
                               "completed":  "2026-09-07 16:07"
                           },
-    "测试:流程验证（可删）":  {
-                        "task_id":  "t100012",
-                        "guid":  "e4c35dc1-333e-466a-b866-35d5b2b5426b",
-                        "created":  "2026-09-02 08:15",
-                        "status":  "completed",
-                        "completed":  "2026-09-02 08:20"
-                    },
-    "M3:批次2-商品模块（F-PRD-01~03）":  {
-                                     "task_id":  "t100016",
-                                     "guid":  "ff3f015a-f400-40e8-9743-101f25cb4200",
+    "M3:批次2-库存模块（F-INV-01~03）":  {
+                                     "task_id":  "t100017",
+                                     "guid":  "29428548-8e4d-41c2-957e-b55dcb2fe14f",
                                      "created":  "2026-09-10 16:52",
                                      "status":  "completed",
                                      "completed":  "2026-09-10 16:52"
                                  },
-    "M3:批次2-库存模块（F-INV-01~03）":  {
-                                     "task_id":  "t100017",
-                                     "guid":  "29428548-8e4d-41c2-957e-b55dcb2fe14f",
+    "并行:微信支付+小程序资质申请":  {
+                            "status":  "open",
+                            "task_id":  "t100011",
+                            "guid":  "67164597-4adf-4647-9d2b-48921f604545",
+                            "created":  "2026-09-02 08:14"
+                        },
+    "M3:批次2-商品模块（F-PRD-01~03）":  {
+                                     "task_id":  "t100016",
+                                     "guid":  "ff3f015a-f400-40e8-9743-101f25cb4200",
                                      "created":  "2026-09-10 16:52",
                                      "status":  "completed",
                                      "completed":  "2026-09-10 16:52"
@@ -67,6 +39,41 @@
                                                "status":  "completed",
                                                "completed":  "2026-09-11 09:11"
                                            },
+    "M2:tea-system 模块落地":  {
+                               "task_id":  "t100001",
+                               "guid":  "7cbf8e9e-7840-4fb3-9e28-e7701e1f1dc2",
+                               "created":  "2026-09-02 08:15",
+                               "status":  "completed",
+                               "completed":  "2026-09-03 16:48"
+                           },
+    "测试:流程验证（可删）":  {
+                        "task_id":  "t100012",
+                        "guid":  "e4c35dc1-333e-466a-b866-35d5b2b5426b",
+                        "created":  "2026-09-02 08:15",
+                        "status":  "completed",
+                        "completed":  "2026-09-02 08:20"
+                    },
+    "M3:批次3-支付模块（F-PAY-01~03）":  {
+                                     "task_id":  "t100019",
+                                     "guid":  "57ee77d0-8fd7-4440-9b7c-0575a6d16bd6",
+                                     "created":  "2026-09-11 08:48",
+                                     "status":  "completed",
+                                     "completed":  "2026-09-11 08:49"
+                                 },
+    "M3:批次3-订单模块（F-ORD-01~04）":  {
+                                     "task_id":  "t100018",
+                                     "guid":  "1fb67eee-a100-407a-baf7-f913e16a0c7d",
+                                     "created":  "2026-09-11 08:48",
+                                     "status":  "completed",
+                                     "completed":  "2026-09-11 08:48"
+                                 },
+    "M3:批次4-会员/营销/报表模块（F-MEM-01~03/F-MKT-01/F-RPT-01~02）":  {
+                                                                "task_id":  "t100021",
+                                                                "guid":  "903487a2-f2c6-4559-9afb-8e2eba5407d1",
+                                                                "created":  "2026-09-11 11:07",
+                                                                "status":  "completed",
+                                                                "completed":  "2026-09-11 11:07"
+                                                            },
     "M2:代码生成器":  {
                      "task_id":  "t100008",
                      "guid":  "c8e2bfd9-e4ad-47da-a764-597b2b69f44c",
@@ -74,11 +81,11 @@
                      "status":  "completed",
                      "completed":  "2026-09-07 14:17"
                  },
-    "M3:批次3-支付模块（F-PAY-01~03）":  {
-                                     "task_id":  "t100019",
-                                     "guid":  "57ee77d0-8fd7-4440-9b7c-0575a6d16bd6",
-                                     "created":  "2026-09-11 08:48",
-                                     "status":  "completed",
-                                     "completed":  "2026-09-11 08:49"
-                                 }
+    "M2:SQL 初始化脚本":  {
+                         "task_id":  "t100007",
+                         "guid":  "51772599-b346-4932-a934-44a6eda04af9",
+                         "created":  "2026-09-02 08:13",
+                         "status":  "completed",
+                         "completed":  "2026-09-03 16:31"
+                     }
 }
