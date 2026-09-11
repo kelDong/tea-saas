@@ -38,10 +38,12 @@ sa-token:
   is-concurrent: true
   token-style: uuid
 
-# 订单配置（P1-5 决策：超时未付 15 分钟自动取消）
+# 订单/支付配置（P1-5 超时未付 15 分钟自动取消；mock 网关待 t100011 资质下发后置 false）
 tea:
   order:
     pay-timeout-minutes: 15
+  pay:
+    mock: true
 
 # 接口文档
 springdoc:

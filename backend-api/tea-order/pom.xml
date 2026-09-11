@@ -29,6 +29,10 @@
         </dependency>
         <dependency>
             <groupId>com.teasaas</groupId>
+            <artifactId>tea-bom</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
             <artifactId>tea-product</artifactId>
         </dependency>
         <dependency>

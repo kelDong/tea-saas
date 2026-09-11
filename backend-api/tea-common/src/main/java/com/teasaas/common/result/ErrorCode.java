@@ -36,8 +36,12 @@ public enum ErrorCode {
     ORDER_STATUS_NOT_ALLOWED(30102, "订单状态不允许该操作"),
 
     /* 04 支付 */
+    PAYMENT_NOT_FOUND(40101, "支付流水不存在"),
+    PAYMENT_STATUS_NOT_ALLOWED(40102, "支付流水状态不允许该操作"),
     CALLBACK_SIGN_FAIL(40201, "支付回调签名校验失败"),
     REFUND_AMOUNT_EXCEED(40202, "退款金额超限"),
+    REFUND_NOT_FOUND(40301, "退款单不存在"),
+    REFUND_NOT_ALLOWED(40302, "订单当前状态不可退款"),
 
     /* 05 会员 */
     MEMBER_NOT_FOUND(50101, "会员不存在"),

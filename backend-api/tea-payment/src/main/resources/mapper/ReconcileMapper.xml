@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teasaas.payment.mapper.ReconcileMapper">
+
+    <!-- 库存账实核对（F-PAY-03，数据库设计 13.4）：流水累计 vs 台账现值 -->
+    <select id="selectStockDiffs" resultType="com.teasaas.payment.vo.ReconcileVO$StockDiffNode">
+        SELECT s.store_id     AS storeId,
+               s.material_id  AS materialId,
+               m.material_name AS materialName,
+               IFNULL(SUM(l.change_qty), 0) AS loggedQty,
+               IFNULL(s.stock_qty, 0) AS stockQty
+          FROM inv_store_material_stock s
+          LEFT JOIN inv_stock_log l
+                 ON l.store_id = s.store_id
+                AND l.material_id = s.material_id
+          JOIN bom_material m ON m.id = s.material_id
+         GROUP BY s.store_id, s.material_id, m.material_name, s.stock_qty
+        HAVING IFNULL(SUM(l.change_qty), 0) &lt;&gt; IFNULL(s.stock_qty, 0)
+         ORDER BY s.store_id, m.material_name
+    </select>
+</mapper>
