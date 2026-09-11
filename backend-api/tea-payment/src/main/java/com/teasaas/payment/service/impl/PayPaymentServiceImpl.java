@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -84,6 +85,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private final SysUserStoreMapper sysUserStoreMapper;
     private final TenantMapper tenantMapper;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     /** mock 网关开关（微信商户资质 t100011 下发后置 false 接正式 V3） */
     @Value("${tea.pay.mock:true}")
@@ -213,7 +215,8 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         }
 
         try {
-            processTask(task, payment);
+            // 显式事务（本类内自调用会绕过 @Transactional 代理）
+            transactionTemplate.executeWithoutResult(tx -> processTask(task, payment));
             return "SUCCESS";
         } catch (Exception e) {
             log.warn("回调即时处理失败，转定时重试 paymentNo={}", dto.getPaymentNo(), e);
@@ -242,7 +245,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
                         if (payment == null) {
                             throw new BizException(ErrorCode.PAYMENT_NOT_FOUND);
                         }
-                        processTask(task, payment);
+                        transactionTemplate.executeWithoutResult(tx -> processTask(task, payment));
                         processed++;
                     } catch (Exception e) {
                         scheduleRetry(task, e.getMessage());
@@ -257,8 +260,11 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         return processed;
     }
 
-    /** 任务处理：成功置 2；幂等（流水已成功直接成功收尾） */
-    @Transactional(rollbackFor = Exception.class)
+    /**
+     * 任务处理：成功置 2；幂等（流水已成功直接成功收尾）。
+     * 事务由调用方提供（handleCallback/retryPendingTasks 经 TransactionTemplate）——
+     * 本类内自调用绕过代理，勿在本方法再加 @Transactional。
+     */
     public void processTask(PayCallbackTask task, PayPayment payment) {
         markPaymentSuccess(payment, extractTransactionId(task));
         payCallbackTaskMapper.update(null, new LambdaUpdateWrapper<PayCallbackTask>()
@@ -269,9 +275,10 @@ public class PayPaymentServiceImpl implements PayPaymentService {
 
     /**
      * 支付成功落账（幂等）：订单 1→2（payTime/payChannel）后流水 1→2；
-     * 订单已取消（超时）→ 流水关闭 4，由对账/人工处理退款
+     * 订单已取消（超时）→ 流水关闭 4，由对账/人工处理退款。
+     * 事务由调用方提供（posPay 的 @Transactional / processTask 的 TransactionTemplate）——
+     * 本类内自调用绕过代理，勿在本方法再加 @Transactional。
      */
-    @Transactional(rollbackFor = Exception.class)
     public void markPaymentSuccess(PayPayment payment, String transactionId) {
         PayPayment fresh = payPaymentMapper.selectById(payment.getId());
         if (fresh == null) {
