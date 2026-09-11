@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M3 批次 2 收官（商品/库存已提交，批次 3 订单+支付开工前）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M3 批次 3 收官（订单/支付/tea-job 已提交，批次 4 会员/营销/报表开工前）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+57e204b feat(order/payment/job): 订单状态机+下单扣库存+POS收银；支付mock网关/回调本地表重试/整单退款/日终对账 F-ORD-01~04 F-PAY-01~03
 0b526f5 feat(product/inventory): 商品/上架/库存按契约落地——可售判定13.2实时SQL+下单扣减13.1条件更新幂等+盘点留痕+采购入库联动 F-PRD-01~03/F-INV-01~03
 37a5c4e docs(handoff): 进度快照更新至M3批次2启动——批次1三模块+framework修复已入档
 06aa282 chore(tools): 飞书任务清单同步——M3批次1三任务完成记录（BOM/加盟/供应链）
@@ -51,6 +52,26 @@
 - 模块依赖新增：tea-product +tea-franchise；tea-supply +tea-inventory（均无环）
 - 删除 4 个无契约脚手架 Controller（规格/选项×2、库存台账/流水×2），端点统一收敛到契约路径
 
+### M3 批次 3 —— ✅ 已提交（2026-09-10）
+
+| 模块 | 接口 | commit | 飞书 |
+|---|---|---|---|
+| 订单（C端下单/试算/取消/B端状态机/POS收银） | F-ORD-01~04 | 57e204b | t100018 ✅ |
+| 支付（mock网关/回调重试/退款/对账）+ tea-job | F-PAY-01~03 | 57e204b | t100019 ✅ |
+
+**落地要点**（细节见 commit diff）：
+- 下单即扣库存：tea-order 注入 `InvStockService.deduct`（bizNo=orderNo，幂等内建）；超时取消/退款回补走 `OrdOrderService.restoreOrderStock(orderId, bizType)`（按明细 formula 快照反算，供 tea-payment 复用）
+- 状态机全条件更新（`.eq(status, from)`），affected=0 即 ORDER_STATUS_NOT_ALLOWED；1→2→3→4→5，6/7 终态
+- 支付成功顺序：**订单先 1→2，流水后 1→2**；订单已取消后款到 → 流水关闭(4) 留对账人工退款
+- 回调（P1-3 不引 MQ）：验签(mock跳过)→金额核对→落 `pay_callback_task`→即时处理；失败指数退避 2^n 分钟，max_retry=5 置终态；处理待重试也答 SUCCESS（防微信重推）
+- mock 网关：`tea.pay.mock=true`（yml）；JSAPI 返回 payParams、Native 返回 codeUrl；退款即时成功；**正式接入=t100011 资质下发后置 false**
+- POS 渠道映射：入参 1现金/2微信Native/3储值 → 订单表 1微信/2储值/3现金（现金含找零校验）
+- 对账无状态按日实时：已支付订单(pay_time) vs 成功流水(callback_time) 逐单匹配 + 库存 SUM(change_qty)=stock_qty（`ReconcileMapper.xml` join 靠租户插件自动拼）
+- tea-job：超时取消每分钟/回调重试错峰 30s/日终对账 02:30，`@EnableScheduling`，job 自管 TenantContext 无会话依赖；超时逐单用 TransactionTemplate（避免自调用事务失效）
+- C 端桥接：X-Tenant-Id（租户）+ X-Member-Id（会员，**批次 4 登录落地后替换**）；白名单已加 `/api/app/v1/orders|payments/**`
+- 模块依赖新增：tea-order +tea-bom；tea-payment +tea-inventory（均无环）
+- 暂缓：储值/优惠券/积分（批次 4 钱包）、WebSocket /ws/orders（P1-2，store-terminal 未初始化）、微信 V3 验签
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -65,8 +86,8 @@
 
 ## 4. 接手后的建议顺序
 
-1. 批次 3：订单+支付（F-ORD/F-PAY）——下单扣减直接注入 `InvStockService.deduct`（幂等已内建）；超时/退款走 restore；支付回调本地表+定时重试，不引 MQ
-2. 批次 4：会员/营销/报表（F-MEM/F-MKT/F-RPT）
+1. 批次 4：会员/营销/报表（F-MEM/F-MKT/F-RPT）——**F-MEM-01 微信登录落地后替换 C 端 X-Member-Id 桥接**；钱包/储值落地后回头开通 POS 储值收款与储值退款（`PayPaymentServiceImpl.posPay`/`PayRefundServiceImpl.apply` 的拒绝分支已留注释）
+2. 批次 4 收尾后：admin-web 前端逐模块接接口
 3. 前端逐模块替换 `views/error/Placeholder.vue`（`component` 字段如 `product/Materials` → `src/views/product/Materials.vue`，动态路由自动匹配）
 4. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办
 
