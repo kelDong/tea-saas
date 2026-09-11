@@ -32,8 +32,8 @@ import org.springframework.web.bind.annotation.RestController;
  * X-Tenant-Id 请求头手动设置 TenantContext，查询仍由租户插件自动拼
  * tenant_id 隔离；请求结束由 TenantCleanupInterceptor 统一清理 ThreadLocal。</p>
  *
- * <p>会员身份：F-MEM-01 微信登录（批次 4）落地前，经 X-Member-Id 请求头
- * 传入会员 ID（开发桥接，落地后替换为会话身份）。</p>
+ * <p>会员身份：wx-login（F-MEM-01）返回 memberId 后，前端经 X-Member-Id
+ * 请求头携带（开发桥接，正式 C 端会话二期替换）。</p>
  */
 @Validated
 @RestController
@@ -47,14 +47,16 @@ public class AppOrderController {
 
     private final OrdOrderService ordOrderService;
 
-    @Operation(summary = "订单预览试算（不落库不扣库存）")
+    @Operation(summary = "订单预览试算（不落库不扣库存；用券/积分需会员标识）")
     @PostMapping("/preview")
     public Result<OrderPreviewVO> preview(
             @RequestHeader(value = TENANT_HEADER, required = false)
             @Parameter(description = "品牌标识（租户 ID），必填") Long tenantId,
+            @RequestHeader(value = MEMBER_HEADER, required = false)
+            @Parameter(description = "会员ID（用券/积分抵扣时必填）") Long memberId,
             @RequestBody @Validated AppOrderPreviewDTO dto) {
         requireTenant(tenantId);
-        return Result.success(ordOrderService.preview(dto));
+        return Result.success(ordOrderService.preview(dto, memberId));
     }
 
     @Operation(summary = "下单（下单即扣库存，返回取餐码）")

@@ -37,16 +37,19 @@ public interface OrdOrderService {
 
     // ==================== C 端（X-Tenant-Id + X-Member-Id 注入） ====================
 
-    /** 订单预览试算：只算钱，不落库不扣库存 */
-    OrderPreviewVO preview(AppOrderPreviewDTO dto);
+    /** 订单预览试算：只算钱，不落库不扣库存；用券/积分抵扣需传 memberId */
+    OrderPreviewVO preview(AppOrderPreviewDTO dto, Long memberId);
 
-    /** C 端下单：服务端二次校验库存并即时扣减，生成取餐码 */
+    /**
+     * C 端下单：服务端二次校验库存并即时扣减，生成取餐码；券核销/积分抵扣/
+     * 储值支付同事务落账（储值单即时置已支付并发放积分）。
+     */
     OrderCreateVO appCreate(AppOrderCreateDTO dto, Long memberId);
 
     /** C 端我的订单列表 */
     PageResult<OrdOrder> appPage(int page, int size, Long memberId);
 
-    /** C 端取消（仅本人待支付单），回补库存（bizType=2） */
+    /** C 端取消（仅本人待支付单），回补库存（bizType=2）+积分（bizType=3），券不退还 */
     void appCancel(Long orderId, Long memberId);
 
     // ==================== POS（会话，R7/R8） ====================

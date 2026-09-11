@@ -27,6 +27,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
             "/api/app/v1/stores/*/products",
             "/api/app/v1/orders/**",
             "/api/app/v1/payments/**",
+            "/api/app/v1/members/**",
+            "/api/app/v1/coupons/**",
             "/api/notify/**",
             "/api/v3/api-docs/**",
             "/swagger-ui/**",

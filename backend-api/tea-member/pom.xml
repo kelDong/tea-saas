@@ -28,10 +28,6 @@
             <artifactId>tea-system</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.teasaas</groupId>
-            <artifactId>tea-order</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>

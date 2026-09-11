@@ -14,6 +14,9 @@ import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.inventory.constant.StockBizType;
 import com.teasaas.inventory.dto.StockItemDTO;
 import com.teasaas.inventory.service.InvStockService;
+import com.teasaas.marketing.service.MktCouponService;
+import com.teasaas.member.service.MemPointsService;
+import com.teasaas.member.service.MemWalletService;
 import com.teasaas.order.dto.AppOrderCreateDTO;
 import com.teasaas.order.dto.AppOrderPreviewDTO;
 import com.teasaas.order.dto.OrderItemDTO;
@@ -93,8 +96,9 @@ public class OrdOrderServiceImpl implements OrdOrderService {
     private static final int SOURCE_APP = 1;
     private static final int SOURCE_POS = 2;
 
-    /** C 端支付渠道（订单表）：1微信 */
+    /** C 端支付渠道（订单表）：1微信/2储值（P0-4：储值独立通道，不与微信混合） */
     private static final int CHANNEL_WX = 1;
+    private static final int CHANNEL_WALLET = 2;
 
     private static final DateTimeFormatter NO_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -106,6 +110,9 @@ public class OrdOrderServiceImpl implements OrdOrderService {
     private final PrdProductSpecOptionMapper prdProductSpecOptionMapper;
     private final BomFormulaItemMapper bomFormulaItemMapper;
     private final InvStockService invStockService;
+    private final MktCouponService mktCouponService;
+    private final MemPointsService memPointsService;
+    private final MemWalletService memWalletService;
     private final SysUserStoreMapper sysUserStoreMapper;
     private final TenantMapper tenantMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -195,7 +202,7 @@ public class OrdOrderServiceImpl implements OrdOrderService {
     // ==================== C 端（X-Tenant-Id / X-Member-Id 注入） ====================
 
     @Override
-    public OrderPreviewVO preview(AppOrderPreviewDTO dto) {
+    public OrderPreviewVO preview(AppOrderPreviewDTO dto, Long memberId) {
         List<AssembledItem> assembled = assemble(dto.getStoreId(), dto.getItems());
         OrderPreviewVO vo = new OrderPreviewVO();
         vo.setItems(assembled.stream().map(item -> {
@@ -209,22 +216,105 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         }).toList());
         long total = assembled.stream().mapToLong(AssembledItem::amount).sum();
         vo.setTotalAmount(total);
-        vo.setDiscountAmount(0L);
-        vo.setPayAmount(total);
+
+        // 券优惠（不可用直接抛错，C 端可感知换券）
+        long couponAmount = 0L;
+        if (dto.getCouponId() != null) {
+            requireMemberForBenefit(memberId, "使用优惠券");
+            couponAmount = mktCouponService.calcDiscount(dto.getCouponId(), memberId, total);
+        }
+        // 积分抵扣（超限按可抵上限截断，与 appCreate 同规则）
+        int pointsUsed = 0;
+        long pointsAmount = 0L;
+        if (dto.getPointsUsed() != null && dto.getPointsUsed() > 0) {
+            requireMemberForBenefit(memberId, "积分抵扣");
+            int available = memPointsService.availablePoints(memberId);
+            pointsUsed = Math.min(dto.getPointsUsed(), available);
+            pointsUsed = (int) Math.min(pointsUsed, capPoints(total - couponAmount));
+            pointsAmount = (long) pointsUsed * memPointsService.pointValue();
+        }
+        vo.setCouponAmount(couponAmount);
+        vo.setPointsUsed(pointsUsed > 0 ? pointsUsed : null);
+        vo.setPointsAmount(pointsAmount);
+        vo.setDiscountAmount(couponAmount + pointsAmount);
+        vo.setPayAmount(total - couponAmount - pointsAmount);
         return vo;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderCreateVO appCreate(AppOrderCreateDTO dto, Long memberId) {
-        // 一期未开放项（F-MKT/F-MEM 批次 4）：显式拒绝避免静默漏算优惠
-        if (dto.getCouponId() != null || dto.getPointsUsed() != null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "优惠券/积分抵扣暂未开放");
+        if (dto.getPayChannel() == null
+                || (dto.getPayChannel() != CHANNEL_WX && dto.getPayChannel() != CHANNEL_WALLET)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "支付渠道仅支持微信/储值");
         }
-        if (dto.getPayChannel() == null || dto.getPayChannel() != CHANNEL_WX) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "一期仅支持微信支付");
+        List<AssembledItem> assembled = assemble(dto.getStoreId(), dto.getItems());
+        long total = assembled.stream().mapToLong(AssembledItem::amount).sum();
+
+        // 优惠试算（核销/扣减在落单后同事务执行，任一失败整单回滚）
+        boolean useCoupon = dto.getCouponId() != null;
+        long couponAmount = useCoupon
+                ? mktCouponService.calcDiscount(dto.getCouponId(), memberId, total) : 0L;
+        int pointsUsed = 0;
+        long pointsAmount = 0L;
+        if (dto.getPointsUsed() != null && dto.getPointsUsed() > 0) {
+            // 超限按可抵上限截断（实付不为负）；可用余额由 useForOrder 校验
+            pointsUsed = (int) Math.min(dto.getPointsUsed(), capPoints(total - couponAmount));
+            pointsAmount = (long) pointsUsed * memPointsService.pointValue();
         }
-        return createOrder(dto.getStoreId(), dto.getItems(), memberId, SOURCE_APP, CHANNEL_WX);
+        long payAmount = total - couponAmount - pointsAmount;
+
+        OrdOrder order = new OrdOrder();
+        order.setTenantId(TenantContext.getTenantId());
+        order.setStoreId(dto.getStoreId());
+        order.setMemberId(memberId);
+        order.setOrderSource(SOURCE_APP);
+        order.setStatus(STATUS_PENDING);
+        order.setTotalAmount(total);
+        order.setDiscountAmount(couponAmount + pointsAmount);
+        order.setPayAmount(payAmount);
+        order.setCouponId(useCoupon ? dto.getCouponId() : null);
+        order.setCouponAmount(useCoupon ? couponAmount : null);
+        order.setPointsUsed(pointsUsed > 0 ? pointsUsed : null);
+        order.setPointsAmount(pointsUsed > 0 ? pointsAmount : null);
+        order.setBalanceAmount(dto.getPayChannel() == CHANNEL_WALLET ? payAmount : null);
+        order.setPayChannel(dto.getPayChannel());
+        order.setTakeCode(nextTakeCode(dto.getStoreId()));
+        insertWithOrderNoRetry(order);
+        persistOrderItems(order, assembled);
+
+        if (useCoupon) {
+            mktCouponService.useCoupon(dto.getCouponId(), memberId, order.getId(), total);
+        }
+        if (pointsUsed > 0) {
+            memPointsService.useForOrder(memberId, order.getOrderNo(), pointsUsed);
+        }
+        if (dto.getPayChannel() == CHANNEL_WALLET) {
+            // 储值独立通道（P0-4）：下单即扣余额、即时支付，全额抵扣 0 元单免扣款
+            if (payAmount > 0) {
+                memWalletService.payForOrder(memberId, order.getOrderNo(), payAmount);
+            }
+            int paid = ordOrderMapper.update(null, new LambdaUpdateWrapper<OrdOrder>()
+                    .set(OrdOrder::getStatus, STATUS_PAID)
+                    .set(OrdOrder::getPayTime, LocalDateTime.now())
+                    .eq(OrdOrder::getId, order.getId())
+                    .eq(OrdOrder::getStatus, STATUS_PENDING));
+            if (paid == 0) {
+                throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
+            }
+            // 储值单不经支付模块回调，订单侧直接发积分（bizNo=orderNo 幂等）
+            memPointsService.earnOnPaid(memberId, order.getOrderNo(), payAmount);
+        }
+
+        // 下单即扣库存（13.1 条件更新；orderNo 幂等；不足整单回滚）
+        deductStockByAssembled(order, dto.getStoreId(), assembled);
+
+        OrderCreateVO vo = new OrderCreateVO();
+        vo.setId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setTakeCode(order.getTakeCode());
+        vo.setPayAmount(order.getPayAmount());
+        return vo;
     }
 
     @Override
@@ -255,6 +345,7 @@ public class OrdOrderServiceImpl implements OrdOrderService {
             throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
         }
         restoreOrderStock(orderId, StockBizType.TIMEOUT_RESTORE);
+        refundPointsQuietly(order); // 积分回补（bizNo=orderNo 幂等）；券不退还（PRD 一期）
     }
 
     // ==================== POS 手工收银（F-ORD-04，R7/R8） ====================
@@ -305,6 +396,7 @@ public class OrdOrderServiceImpl implements OrdOrderService {
                             return 0;
                         }
                         restoreOrderStock(order.getId(), StockBizType.TIMEOUT_RESTORE);
+                        refundPointsQuietly(order); // 积分回补（幂等）；券不退还
                         return rows;
                     });
                     if (affected != null && affected > 0) {
@@ -339,7 +431,19 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         order.setPayChannel(payChannel);
         order.setTakeCode(nextTakeCode(storeId));
         insertWithOrderNoRetry(order);
+        persistOrderItems(order, assembled);
+        deductStockByAssembled(order, storeId, assembled);
 
+        OrderCreateVO vo = new OrderCreateVO();
+        vo.setId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setTakeCode(order.getTakeCode());
+        vo.setPayAmount(order.getPayAmount());
+        return vo;
+    }
+
+    /** 明细落库（快照定价） */
+    private void persistOrderItems(OrdOrder order, List<AssembledItem> assembled) {
         for (AssembledItem item : assembled) {
             OrdOrderItem oi = new OrdOrderItem();
             oi.setTenantId(order.getTenantId());
@@ -354,8 +458,10 @@ public class OrdOrderServiceImpl implements OrdOrderService {
             oi.setFormulaId(item.formulaId());
             ordOrderItemMapper.insert(oi);
         }
+    }
 
-        // 下单即扣库存（13.1 条件更新；orderNo 幂等；不足整单回滚）
+    /** 下单即扣库存（13.1 条件更新；orderNo 幂等；不足整单回滚） */
+    private void deductStockByAssembled(OrdOrder order, Long storeId, List<AssembledItem> assembled) {
         Map<Long, Integer> formulaQty = new LinkedHashMap<>();
         for (AssembledItem item : assembled) {
             if (item.formulaId() != null) {
@@ -363,13 +469,28 @@ public class OrdOrderServiceImpl implements OrdOrderService {
             }
         }
         invStockService.deduct(order.getOrderNo(), storeId, toStockItems(aggregateMaterials(formulaQty)));
+    }
 
-        OrderCreateVO vo = new OrderCreateVO();
-        vo.setId(order.getId());
-        vo.setOrderNo(order.getOrderNo());
-        vo.setTakeCode(order.getTakeCode());
-        vo.setPayAmount(order.getPayAmount());
-        return vo;
+    /** 积分可抵上限（实付不为负）：按 1 积分 = pointValue 分向下取整 */
+    private long capPoints(long payable) {
+        long pointValue = memPointsService.pointValue();
+        return pointValue <= 0 ? 0 : payable / pointValue;
+    }
+
+    /** 用券/积分须会员身份 */
+    private void requireMemberForBenefit(Long memberId, String action) {
+        if (memberId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, action + "需登录会员");
+        }
+    }
+
+    /** 取消回补积分（bizType=3，bizNo=orderNo 幂等）；无积分单直接跳过 */
+    private void refundPointsQuietly(OrdOrder order) {
+        if (order.getPointsUsed() == null || order.getPointsUsed() <= 0
+                || order.getMemberId() == null) {
+            return;
+        }
+        memPointsService.refundOfOrder(order.getMemberId(), order.getOrderNo(), order.getPointsUsed());
     }
 
     /**

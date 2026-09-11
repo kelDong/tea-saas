@@ -40,6 +40,14 @@
             <artifactId>tea-inventory</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-member</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.teasaas</groupId>
+            <artifactId>tea-marketing</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>

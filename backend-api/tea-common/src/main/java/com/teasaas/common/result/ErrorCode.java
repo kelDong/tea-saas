@@ -46,6 +46,7 @@ public enum ErrorCode {
     /* 05 会员 */
     MEMBER_NOT_FOUND(50101, "会员不存在"),
     WALLET_BALANCE_NOT_ENOUGH(50201, "储值余额不足"),
+    POINTS_NOT_ENOUGH(50202, "可用积分不足"),
 
     /* 06 供应链 */
     PURCHASE_NOT_FOUND(60101, "采购单不存在"),
@@ -60,7 +61,8 @@ public enum ErrorCode {
     STORE_NOT_FOUND(80201, "门店不存在"),
 
     /* 09 营销 */
-    COUPON_NOT_AVAILABLE(90101, "优惠券不可用");
+    COUPON_NOT_AVAILABLE(90101, "优惠券不可用"),
+    COUPON_TEMPLATE_NOT_FOUND(90102, "券模板不存在");
 
     private final Integer code;
     private final String message;

@@ -7,6 +7,7 @@ import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
+import com.teasaas.member.service.MemPointsService;
 import com.teasaas.order.dto.PosPayDTO;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.mapper.OrdOrderMapper;
@@ -82,6 +83,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private final PayPaymentMapper payPaymentMapper;
     private final PayCallbackTaskMapper payCallbackTaskMapper;
     private final OrdOrderMapper ordOrderMapper;
+    private final MemPointsService memPointsService;
     private final SysUserStoreMapper sysUserStoreMapper;
     private final TenantMapper tenantMapper;
     private final ObjectMapper objectMapper;
@@ -324,6 +326,13 @@ public class PayPaymentServiceImpl implements PayPaymentService {
                 .set(PayPayment::getCallbackTime, LocalDateTime.now())
                 .eq(PayPayment::getId, fresh.getId())
                 .eq(PayPayment::getStatus, PAY_STATUS_PENDING));
+
+        // 支付成功得积分（F-MEM-02：bizNo=orderNo 幂等；POS 单无会员跳过）
+        OrdOrder paidOrder = ordOrderMapper.selectById(fresh.getOrderId());
+        if (paidOrder != null && paidOrder.getMemberId() != null) {
+            memPointsService.earnOnPaid(paidOrder.getMemberId(), paidOrder.getOrderNo(),
+                    paidOrder.getPayAmount() == null ? 0L : paidOrder.getPayAmount());
+        }
     }
 
     // ==================== 查询 ====================

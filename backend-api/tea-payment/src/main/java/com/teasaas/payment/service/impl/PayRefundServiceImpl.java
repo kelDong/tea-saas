@@ -8,6 +8,8 @@ import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.PageResult;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.inventory.constant.StockBizType;
+import com.teasaas.member.service.MemPointsService;
+import com.teasaas.member.service.MemWalletService;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.mapper.OrdOrderMapper;
 import com.teasaas.order.service.OrdOrderService;
@@ -36,8 +38,9 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * 退款服务实现（F-PAY-02，接口需求 9.2，P0-5 决策）
  *
- * <p>一期仅整单退（amount=实付）：微信/现金原路退（mock 即时成功），
- * 储值退款待批次 4 钱包落地后开放；已核销券不退还（coupon_returned=0）。
+ * <p>一期仅整单退（amount=实付）：微信原路退（mock 即时成功），
+ * 储值单（pay_channel=2）即时退回钱包（refundType=2）；已核销券不退还
+ * （coupon_returned=0），积分全额回补（bizType=3，bizNo=orderNo 幂等）。
  * 退款成功 = 退款单置 2 + 订单条件更新 →7（已退款）+ 库存回补
  * （inv_stock_log bizType=3，bizNo=orderNo 幂等）。</p>
  */
@@ -64,8 +67,9 @@ public class PayRefundServiceImpl implements PayRefundService {
     /** 支付渠道：1微信/2储值 */
     private static final int CHANNEL_BALANCE = 2;
 
-    /** 退款类型：1原路（微信线上/现金线下） */
+    /** 退款类型：1原路（微信线上/现金线下）/2退储值 */
     private static final int REFUND_TYPE_ORIGIN = 1;
+    private static final int REFUND_TYPE_BALANCE = 2;
 
     private static final DateTimeFormatter NO_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -73,6 +77,8 @@ public class PayRefundServiceImpl implements PayRefundService {
     private final PayPaymentMapper payPaymentMapper;
     private final OrdOrderMapper ordOrderMapper;
     private final OrdOrderService ordOrderService;
+    private final MemPointsService memPointsService;
+    private final MemWalletService memWalletService;
     private final SysUserStoreMapper sysUserStoreMapper;
 
     /** mock 网关开关：true 退款即时成功；正式模式退款单置 1 处理中待微信回调 */
@@ -113,11 +119,15 @@ public class PayRefundServiceImpl implements PayRefundService {
                 .eq(PayPayment::getOrderId, orderId)
                 .eq(PayPayment::getStatus, PAY_STATUS_SUCCESS)
                 .last("LIMIT 1"));
-        if (payment == null) {
-            throw new BizException(ErrorCode.REFUND_NOT_ALLOWED, "无成功支付流水");
+        // 储值单（pay_channel=2）无微信流水：扣款在钱包侧，退款退回储值（P0-4）
+        boolean balanceRefund = payment == null;
+        if (payment != null && payment.getChannel() != null && payment.getChannel() == CHANNEL_BALANCE) {
+            balanceRefund = true;
+            payment = null;
         }
-        if (payment.getChannel() != null && payment.getChannel() == CHANNEL_BALANCE) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "储值退款待批次4钱包落地后开放");
+        if (balanceRefund && (order.getPayChannel() == null
+                || order.getPayChannel() != CHANNEL_BALANCE || order.getMemberId() == null)) {
+            throw new BizException(ErrorCode.REFUND_NOT_ALLOWED, "无成功支付流水");
         }
 
         // 退款单落库（1处理中；mock 即时置 2）
@@ -125,9 +135,9 @@ public class PayRefundServiceImpl implements PayRefundService {
         refund.setTenantId(order.getTenantId());
         refund.setRefundNo(genNo("RF"));
         refund.setOrderId(order.getId());
-        refund.setPaymentId(payment.getId());
+        refund.setPaymentId(payment == null ? null : payment.getId());
         refund.setAmount(order.getPayAmount());
-        refund.setRefundType(REFUND_TYPE_ORIGIN);
+        refund.setRefundType(balanceRefund ? REFUND_TYPE_BALANCE : REFUND_TYPE_ORIGIN);
         refund.setCouponReturned(0);
         refund.setReason(dto.getReason());
         refund.setStatus(REFUND_PENDING);
@@ -157,10 +167,20 @@ public class PayRefundServiceImpl implements PayRefundService {
             throw new BizException(ErrorCode.REFUND_NOT_ALLOWED, "订单状态已变更，请刷新重试");
         }
 
+        // 资金退回：储值即时回钱包（无外部通道）；微信 mock 即时，正式走退款回调
+        if (balanceRefund) {
+            memWalletService.refundOfOrder(order.getMemberId(), order.getOrderNo(), order.getPayAmount());
+        }
+        // 积分全额回补（F-MEM-02：bizType=3，bizNo=orderNo 幂等）；券不退还（PRD 一期）
+        if (order.getMemberId() != null && order.getPointsUsed() != null && order.getPointsUsed() > 0) {
+            memPointsService.refundOfOrder(order.getMemberId(), order.getOrderNo(), order.getPointsUsed());
+        }
+
         // 库存回补（bizNo=orderNo + bizType=3 幂等）
         ordOrderService.restoreOrderStock(orderId, StockBizType.REFUND_RESTORE);
-        log.info("退款完成 refundNo={} orderNo={} amount={}分 mock={}",
-                refund.getRefundNo(), order.getOrderNo(), refund.getAmount(), mock);
+        log.info("退款完成 refundNo={} orderNo={} amount={}分 type={} mock={}",
+                refund.getRefundNo(), order.getOrderNo(), refund.getAmount(),
+                balanceRefund ? "退储值" : "微信原路", mock);
 
         return toVO(refund, order.getOrderNo());
     }

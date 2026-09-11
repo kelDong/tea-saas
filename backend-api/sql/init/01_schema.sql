@@ -554,7 +554,7 @@ CREATE TABLE `pay_refund` (
   `tenant_id`       BIGINT       NOT NULL,
   `refund_no`       VARCHAR(32)  NOT NULL,
   `order_id`        BIGINT       NOT NULL,
-  `payment_id`      BIGINT       NOT NULL,
+  `payment_id`      BIGINT       NULL                  COMMENT '微信流水ID；储值退款(pay_channel=2)无流水为空',
   `amount`          BIGINT       NOT NULL               COMMENT '整单退=实付',
   `refund_type`     TINYINT      NOT NULL DEFAULT 1     COMMENT '1微信原路/2退储值',
   `coupon_returned` TINYINT      NOT NULL DEFAULT 0     COMMENT '券不退还=0',
@@ -662,6 +662,19 @@ CREATE TABLE `mem_recharge_record` (
   PRIMARY KEY (`id`),
   KEY `idx_recharge_member` (`tenant_id`, `member_id`)
 ) ENGINE=InnoDB COMMENT='储值记录';
+
+DROP TABLE IF EXISTS `mem_member_config`;
+CREATE TABLE `mem_member_config` (
+  `id`            BIGINT   NOT NULL,
+  `tenant_id`     BIGINT   NOT NULL,
+  `points_per_yuan` INT    NOT NULL DEFAULT 1        COMMENT '消费1元得N积分',
+  `point_value`   INT      NOT NULL DEFAULT 1        COMMENT '1积分抵N分(分)',
+  `recharge_bonus_permille` INT NOT NULL DEFAULT 0   COMMENT '充值赠送千分比',
+  `create_time`   DATETIME NULL,
+  `update_time`   DATETIME NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_member_config` (`tenant_id`)
+) ENGINE=InnoDB COMMENT='会员规则配置(积分/储值,接口需求10.2/10.3可配置项)';
 
 -- ============================================================
 -- 9. 营销（tea-marketing）

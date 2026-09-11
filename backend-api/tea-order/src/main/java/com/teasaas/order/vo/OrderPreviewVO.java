@@ -18,8 +18,17 @@ public class OrderPreviewVO implements Serializable {
     @Schema(description = "商品总额(分)")
     private Long totalAmount;
 
-    @Schema(description = "优惠金额(分)，一期固定0")
+    @Schema(description = "优惠金额(分)=券优惠+积分抵扣")
     private Long discountAmount;
+
+    @Schema(description = "券优惠金额(分)")
+    private Long couponAmount;
+
+    @Schema(description = "积分抵扣数量")
+    private Integer pointsUsed;
+
+    @Schema(description = "积分抵扣金额(分)")
+    private Long pointsAmount;
 
     @Schema(description = "应收金额(分)")
     private Long payAmount;

@@ -543,7 +543,7 @@ tenant（品牌租户）
 |---|---|---|---|
 | refund_no | VARCHAR(32) | N | 退款单号，唯一 |
 | order_id | BIGINT | N | 订单 ID |
-| payment_id | BIGINT | N | 支付流水 ID |
+| payment_id | BIGINT | Y | 支付流水 ID（储值退款 pay_channel=2 无微信流水，为空） |
 | amount | BIGINT | N | 退款金额（分，整单退=实付金额） |
 | refund_type | TINYINT | N | 1 微信原路退回 / 2 退回储值账户（v1.1） |
 | coupon_returned | TINYINT | N | 券是否退还（v1.1 决策：已核销券不退还=0） |
@@ -627,6 +627,17 @@ tenant（品牌租户）
 | bonus | BIGINT | N | 赠送金额（分） |
 | balance_after | BIGINT | N | 充值后余额 |
 | biz_no | VARCHAR(32) | Y | 关联支付单号 |
+
+### 10.6 `mem_member_config` 会员规则配置表（F-MEM-02/03，批次4新增）
+
+| 字段 | 类型 | 允许空 | 说明 |
+|---|---|---|---|
+| tenant_id | BIGINT | N | 租户（唯一，一租户一行） |
+| points_per_yuan | INT | N | 消费 1 元得 N 积分，默认 1 |
+| point_value | INT | N | 1 积分抵 N 分，默认 1 |
+| recharge_bonus_permille | INT | N | 充值赠送千分比，默认 0 |
+
+> 接口需求 10.2/10.3 可配置项落库；无配置记录时代码侧取默认值（1/1/0）。
 
 ---
 
@@ -796,7 +807,7 @@ INSERT INTO inv_stock_log(..., biz_type = 4, biz_no = #{purchaseNo}) VALUES(...)
 11. inv_store_material_stock, inv_stock_log               -- 依赖 4/8
 12. ord_order, ord_order_item                             -- 依赖 6/8/mem_member
 13. pay_payment, pay_refund, pay_callback_task            -- 依赖 12（callback_task 为 v1.1 新增）
-14. mem_member, mem_member_level, mem_wallet, mem_points_log, mem_recharge_record
+14. mem_member, mem_member_level, mem_wallet, mem_points_log, mem_recharge_record, mem_member_config
 15. mkt_coupon_template, mkt_coupon_scope, mkt_coupon     -- 依赖 12
 16. sys_operation_log
 ```
@@ -823,7 +834,7 @@ INSERT INTO inv_stock_log(..., biz_type = 4, biz_no = #{purchaseNo}) VALUES(...)
 | F-INV-01~03 | inv_store_material_stock / inv_stock_log |
 | F-ORD-01~04 | ord_order / ord_order_item（order_source=门店收银） |
 | F-PAY-01~03 | pay_payment / pay_refund / pay_callback_task |
-| F-MEM-01~03 | mem_member(_level) / mem_points_log / mem_wallet / mem_recharge_record |
+| F-MEM-01~03 | mem_member(_level) / mem_points_log / mem_wallet / mem_recharge_record / mem_member_config |
 | F-MKT-01 | mkt_coupon_template / mkt_coupon_scope / mkt_coupon |
 
 ---

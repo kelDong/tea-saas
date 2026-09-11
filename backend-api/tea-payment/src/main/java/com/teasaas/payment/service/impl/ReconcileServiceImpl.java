@@ -46,6 +46,7 @@ public class ReconcileServiceImpl implements ReconcileService {
     /** 已支付及其后状态（1待支付/6已取消不计入） */
     private static final List<Integer> PAID_STATUSES = List.of(2, 3, 4, 5, 7);
     private static final int PAY_STATUS_SUCCESS = 2;
+    private static final int CHANNEL_WX = 1;
 
     private final OrdOrderMapper ordOrderMapper;
     private final PayPaymentMapper payPaymentMapper;
@@ -101,8 +102,11 @@ public class ReconcileServiceImpl implements ReconcileService {
         LocalDateTime start = day.atStartOfDay();
         LocalDateTime end = day.plusDays(1).atStartOfDay();
 
+        // 仅微信单对账支付流水（pay_channel=1）；储值单（channel=2）扣款在
+        // 钱包侧落迹（total_consume），不产生 pay_payment，纳入则必误报缺流水
         List<OrdOrder> orders = ordOrderMapper.selectList(new LambdaQueryWrapper<OrdOrder>()
                 .in(OrdOrder::getStatus, PAID_STATUSES)
+                .eq(OrdOrder::getPayChannel, CHANNEL_WX)
                 .ge(OrdOrder::getPayTime, start)
                 .lt(OrdOrder::getPayTime, end));
         List<PayPayment> payments = payPaymentMapper.selectList(new LambdaQueryWrapper<PayPayment>()

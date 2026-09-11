@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teasaas.report.mapper.ReportMapper">
+
+    <!-- 营业口径：已支付未退款 status IN (2,3,4,5)，按 pay_time 归属时段 -->
+    <sql id="salesCondition">
+        o.status IN (2, 3, 4, 5)
+        AND o.pay_time &gt;= #{start}
+        AND o.pay_time &lt; #{end}
+    </sql>
+
+    <!-- 营业趋势：day 近30天 / week 近8周 / month 近12月，分组格式经 choose 白名单防注入 -->
+    <select id="selectStoreTrend" resultType="com.teasaas.report.vo.StoreReportVO$TrendNode">
+        SELECT
+        <choose>
+            <when test="granularity == 'week'">DATE_FORMAT(o.pay_time, '%x-W%v')</when>
+            <when test="granularity == 'month'">DATE_FORMAT(o.pay_time, '%Y-%m')</when>
+            <otherwise>DATE_FORMAT(o.pay_time, '%Y-%m-%d')</otherwise>
+        </choose>
+               AS period,
+               COUNT(*)      AS orderCount,
+               IFNULL(SUM(o.pay_amount), 0) AS salesAmount
+          FROM ord_order o
+         WHERE <include refid="salesCondition"/>
+           <if test="storeId != null">AND o.store_id = #{storeId}</if>
+         GROUP BY period
+         ORDER BY period
+    </select>
+
+    <!-- 门店日结：订单聚合 + 当日成功退款单 + 支付渠道分布 -->
+    <select id="selectDailySettle" resultType="com.teasaas.report.vo.DailySettleVO">
+        SELECT t.orderCount,
+               t.salesAmount,
+               CASE WHEN t.orderCount &gt; 0
+                    THEN ROUND(t.salesAmount / t.orderCount) ELSE 0 END AS avgOrderAmount,
+               t.wxAmount,
+               t.walletAmount,
+               IFNULL(r.refundCount, 0) AS refundCount,
+               IFNULL(r.refundAmount, 0) AS refundAmount
+          FROM (SELECT COUNT(*) AS orderCount,
+                       IFNULL(SUM(o.pay_amount), 0) AS salesAmount,
+                       IFNULL(SUM(CASE WHEN o.pay_channel = 1 THEN o.pay_amount ELSE 0 END), 0) AS wxAmount,
+                       IFNULL(SUM(CASE WHEN o.pay_channel = 2 THEN o.pay_amount ELSE 0 END), 0) AS walletAmount
+                  FROM ord_order o
+                 WHERE o.store_id = #{storeId}
+                   AND <include refid="salesCondition"/>) t
+          LEFT JOIN (SELECT COUNT(*) AS refundCount,
+                            IFNULL(SUM(pr.amount), 0) AS refundAmount
+                       FROM pay_refund pr
+                       JOIN ord_order o2 ON o2.id = pr.order_id AND o2.store_id = #{storeId}
+                      WHERE pr.status = 2
+                        AND pr.refund_time &gt;= #{start}
+                        AND pr.refund_time &lt; #{end}) r ON 1 = 1
+    </select>
+
+    <!-- 热销商品：近 N 天订单明细按商品聚合 -->
+    <select id="selectHotProducts" resultType="com.teasaas.report.vo.HotProductVO">
+        SELECT i.product_id   AS productId,
+               i.product_name AS productName,
+               SUM(i.qty)     AS qty,
+               IFNULL(SUM(i.amount), 0) AS salesAmount
+          FROM ord_order_item i
+          JOIN ord_order o ON o.id = i.order_id
+         WHERE o.status IN (2, 3, 4, 5)
+           AND o.pay_time &gt;= #{start}
+         GROUP BY i.product_id, i.product_name
+         ORDER BY qty DESC
+         LIMIT #{limit}
+    </select>
+
+    <!-- 门店排行：指定日营业额降序（全品牌） -->
+    <select id="selectStoreRanking" resultType="com.teasaas.report.vo.StoreRankVO">
+        SELECT o.store_id AS storeId,
+               s.store_name AS storeName,
+               IFNULL(SUM(o.pay_amount), 0) AS salesAmount,
+               COUNT(*) AS orderCount
+          FROM ord_order o
+          LEFT JOIN fra_store s ON s.id = o.store_id
+         WHERE <include refid="salesCondition"/>
+         GROUP BY o.store_id, s.store_name
+         ORDER BY salesAmount DESC
+    </select>
+
+    <!-- 时段汇总（看板今日/昨日复用） -->
+    <select id="selectSalesBetween" resultType="com.teasaas.report.vo.StoreReportVO$TrendNode">
+        SELECT COUNT(*) AS orderCount,
+               IFNULL(SUM(o.pay_amount), 0) AS salesAmount
+          FROM ord_order o
+         WHERE <include refid="salesCondition"/>
+    </select>
+
+    <select id="countMembers" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM mem_member
+    </select>
+
+    <select id="countStores" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM fra_store WHERE status = 1 AND del_flag = 0
+    </select>
+
+    <select id="countStockWarn" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM inv_store_material_stock s
+          JOIN bom_material m ON m.id = s.material_id
+         WHERE m.warn_threshold IS NOT NULL
+           AND s.stock_qty &lt;= m.warn_threshold
+    </select>
+
+    <select id="countInventory" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM inv_store_material_stock s
+          JOIN bom_material m ON m.id = s.material_id
+    </select>
+
+    <!-- 库存总览：预警缺口优先，分页 -->
+    <select id="selectInventorySummary" resultType="com.teasaas.report.vo.InventorySummaryVO">
+        SELECT s.store_id    AS storeId,
+               st.store_name AS storeName,
+               s.material_id AS materialId,
+               m.material_name AS materialName,
+               s.stock_qty   AS stockQty,
+               m.warn_threshold AS warnThreshold,
+               CASE WHEN m.warn_threshold IS NOT NULL
+                     AND s.stock_qty &lt;= m.warn_threshold THEN 1 ELSE 0 END AS warn
+          FROM inv_store_material_stock s
+          JOIN bom_material m ON m.id = s.material_id
+          LEFT JOIN fra_store st ON st.id = s.store_id
+         ORDER BY warn DESC, s.stock_qty ASC, s.store_id, m.material_name
+         LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

@@ -2,6 +2,7 @@ package com.teasaas.order.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -26,4 +27,11 @@ public class AppOrderPreviewDTO implements Serializable {
     @NotEmpty(message = "订单明细不能为空")
     @Valid
     private List<OrderItemDTO> items;
+
+    @Schema(description = "用户券ID（用券试算，可选）")
+    private Long couponId;
+
+    @Schema(description = "积分抵扣数量（可选；超限自动按可抵上限截断）")
+    @Min(1)
+    private Integer pointsUsed;
 }
