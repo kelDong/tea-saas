@@ -6,6 +6,7 @@
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+bc080d8 fix(payment): 回调处理自调用绕过事务代理——改TransactionTemplate显式包事务 F-PAY-01（review 发现：handleCallback/retryPendingTasks 直调 this.processTask 致事务注解失效）
 57e204b feat(order/payment/job): 订单状态机+下单扣库存+POS收银；支付mock网关/回调本地表重试/整单退款/日终对账 F-ORD-01~04 F-PAY-01~03
 0b526f5 feat(product/inventory): 商品/上架/库存按契约落地——可售判定13.2实时SQL+下单扣减13.1条件更新幂等+盘点留痕+采购入库联动 F-PRD-01~03/F-INV-01~03
 37a5c4e docs(handoff): 进度快照更新至M3批次2启动——批次1三模块+framework修复已入档
