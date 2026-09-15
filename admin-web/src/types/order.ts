@@ -59,3 +59,45 @@ export interface OrderDetailVO {
   createTime: string
   items: OrderItemNode[]
 }
+
+/** POS 手工下单入参（F-ORD-03，order_source=2，顾客免登录，下单即扣库存） */
+export interface PosOrderCreateDTO {
+  storeId: number
+  items: Array<{ listingId: number; qty: number; specOptionIds?: number[] }>
+}
+
+/** POS 下单返回 */
+export interface PosOrderCreateVO {
+  id: number
+  orderNo: string
+  takeCode: string
+  /** 实付（分） */
+  payAmount: number
+}
+
+/** POS 收款确认入参（注意：POS 端渠道编号 1现金/2微信Native/3储值，与订单表 payChannel 不同） */
+export interface PosPayDTO {
+  payChannel: number
+  /** 实收（分），现金必传且≥应收 */
+  receiveAmount?: number
+}
+
+/** POS 收款返回 */
+export interface PosPayVO {
+  orderId: number
+  orderNo: string
+  /** 应收（分） */
+  payAmount: number
+  /** 实收（分） */
+  receiveAmount: number
+  /** 找零（分），非现金为 0 */
+  changeAmount: number
+  paymentNo: string
+}
+
+/** POS 收款渠道（后端 PosPayDTO 编号） */
+export const POS_PAY_CHANNEL_MAP: Record<number, string> = {
+  1: '现金',
+  2: '微信收款码',
+  3: '储值（未开放）',
+}
