@@ -109,6 +109,13 @@
                                                   "status":  "completed",
                                                   "completed":  "2026-09-15 15:02"
                                               },
+    "M4:批次6-门店端前端五页（F-ORD-02~04）":  {
+                                        "task_id":  "t100027",
+                                        "guid":  "afec3ceb-0240-41c3-aeda-893f1116dcdf",
+                                        "created":  "2026-09-15 15:12",
+                                        "status":  "completed",
+                                        "completed":  "2026-09-15 15:12"
+                                    },
     "M2:SQL 初始化脚本":  {
                          "task_id":  "t100007",
                          "guid":  "51772599-b346-4932-a934-44a6eda04af9",
