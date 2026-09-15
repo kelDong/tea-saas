@@ -39,13 +39,13 @@
                                                "status":  "completed",
                                                "completed":  "2026-09-11 09:11"
                                            },
-    "M2:tea-system 模块落地":  {
-                               "task_id":  "t100001",
-                               "guid":  "7cbf8e9e-7840-4fb3-9e28-e7701e1f1dc2",
-                               "created":  "2026-09-02 08:15",
-                               "status":  "completed",
-                               "completed":  "2026-09-03 16:48"
-                           },
+    "M4:批次1-系统订单前端接接口+F-SYS-01品牌套餐后端补齐（F-SYS-02/04 F-ORD-02/03）":  {
+                                                                       "task_id":  "t100022",
+                                                                       "guid":  "d39a9672-2ae9-4dd0-aa40-305dba3868e5",
+                                                                       "created":  "2026-09-15 11:35",
+                                                                       "status":  "completed",
+                                                                       "completed":  "2026-09-15 11:35"
+                                                                   },
     "测试:流程验证（可删）":  {
                         "task_id":  "t100012",
                         "guid":  "e4c35dc1-333e-466a-b866-35d5b2b5426b",
@@ -53,6 +53,13 @@
                         "status":  "completed",
                         "completed":  "2026-09-02 08:20"
                     },
+    "M2:tea-system 模块落地":  {
+                               "task_id":  "t100001",
+                               "guid":  "7cbf8e9e-7840-4fb3-9e28-e7701e1f1dc2",
+                               "created":  "2026-09-02 08:15",
+                               "status":  "completed",
+                               "completed":  "2026-09-03 16:48"
+                           },
     "M3:批次3-支付模块（F-PAY-01~03）":  {
                                      "task_id":  "t100019",
                                      "guid":  "57ee77d0-8fd7-4440-9b7c-0575a6d16bd6",
