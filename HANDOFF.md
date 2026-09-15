@@ -1,23 +1,28 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M3 批次 4 收官（会员/营销/报表已提交，契约 F-XXX 后端接口全量落地）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M4 收官（admin-web 前端 22 页 + F-SYS-01 后端补缺全部提交，管理后台端到端打通）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
-d5c5190 chore(tools): 飞书任务清单同步——批次4会员/营销/报表t100021完成记录
-cfc037d feat(member/marketing/report): 会员/营销/报表三模块——券积分储值联动下单支付全链路 F-MEM-01~03/F-MKT-01/F-RPT-01~02
-bc080d8 fix(payment): 回调处理自调用绕过事务代理——改TransactionTemplate显式包事务 F-PAY-01（review 发现：handleCallback/retryPendingTasks 直调 this.processTask 致事务注解失效）
-57e204b feat(order/payment/job): 订单状态机+下单扣库存+POS收银；支付mock网关/回调本地表重试/整单退款/日终对账 F-ORD-01~04 F-PAY-01~03
-0b526f5 feat(product/inventory): 商品/上架/库存按契约落地——可售判定13.2实时SQL+下单扣减13.1条件更新幂等+盘点留痕+采购入库联动 F-PRD-01~03/F-INV-01~03
-37a5c4e docs(handoff): 进度快照更新至M3批次2启动——批次1三模块+framework修复已入档
-06aa282 chore(tools): 飞书任务清单同步——M3批次1三任务完成记录（BOM/加盟/供应链）
-754668b fix(framework): 补@MapperScan跨模块mapper注册——主类包外扫描盲区致启动失败（M2遗留，冒烟暴露） M3
-7f3f3b5 feat(supply): 供应商/分级价格/采购单——等级计价快照+条件更新状态机（R6发起P1-1/R4确认发货/R6R7入库） F-SUP-01~04
-96cdb60 feat(franchise): 加盟商/门店档案+开通账号R6绑定+C端附近门店（X-Tenant-Id手动租户注入） F-FRA-01/02
-913a5e8 feat(bom): 原料/配方/毛利试算按契约落地——版本递增/明细全量重绑/复制递推/发布 F-BOM-01/02/03
-（更早：5f1dc72 docs入库 / 2b78e41 generator / 34b9fb2 tea-system / admin-web 骨架等）
+527d94c chore(tools): 飞书任务清单同步——批次7平台前端两页t100028完成记录
+9e09965 feat(admin-web): F7平台两页接后端——品牌租户CRUD启停/套餐列表 R1专属 F-SYS-01
+4a1065b chore(tools): 飞书任务清单同步——批次6门店端前端五页t100027完成记录
+7777d37 feat(admin-web): F6门店端五页接后端——门店工作台/接单流转/POS收银下单收款/门店库存台账/日结对账 F-ORD-02~04
+9f9f086 chore(tools): 飞书任务清单同步——批次5会员营销前端两页t100026完成记录
+9182461 feat(admin-web): F5会员营销两页接后端——会员列表/积分储值规则配置/券模板满减折扣创建停用 F-MEM-01~03 F-MKT-01
+cb5b102 chore(tools): 飞书任务清单同步——批次4加盟+报表前端五页t100025完成记录
+3767f40 feat(admin-web): F4加盟+报表五页接后端——加盟商调级开账号/门店营业开关/工作台/经营趋势日结/品牌排行热销库存总览 F-FRA-01~02 F-RPT-01~02
+0bacdeb chore(tools): 飞书任务清单同步——批次3供应链前端四页t100024完成记录
+e05ccbc feat(admin-web): F3供应链四页接后端——供应商供货绑定/等级定价/采购状态机/库存台账盘点预警 F-SUP-01~04 F-INV-01~03
+4f3e347 fix(admin-web): PageResult 字段 records→list 对齐后端 PageResult.java（骨架类型笔误，会导致所有分页页空白）
+672368e chore(tools): 飞书任务清单同步——批次2产品线四页t100023完成记录
+fb17e2a feat(admin-web): F2产品线四页接后端——原料/配方毛利试算/商品规格/门店上架缺料校验 F-BOM-01~03 F-PRD-01~03
+b0ebc01 chore(tools): 飞书任务清单同步——批次1系统+订单前端三页t100022完成记录
+e2499a7 feat(admin-web): F1前端三页接后端——用户/角色/操作日志/订单查询流转 + api/types/constants 工程层
+2427235 feat(system): F-SYS-01补缺——品牌租户CRUD/启停+套餐列表（/api/admin/v1，R1 Service内校验，平台表无租户隔离）
+a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录见 git log：cfc037d 会员营销报表 / 57e204b 订单支付 / 0b526f5 商品库存 / 754668b MapperScan 修复 / 913a5e8 BOM / 96cdb60 加盟 / 7f3f3b5 供应链）
 ```
 
 ## 2. 里程碑进度
@@ -95,6 +100,32 @@ bc080d8 fix(payment): 回调处理自调用绕过事务代理——改Transactio
 - **角色口径**：会员列表 R2/R5/R6（10.1）与规则配置 R2/R5（10.2）已拆分 requireManageRole/requireConfigRole
 - **遗留**：mkt_coupon_scope（指定商品可用）二期；POS 储值收款仍缺会员身份入参（拒绝分支注释保留）；F-RPT-03 导出二期
 
+## 2.5 M4 —— ✅ 全部收官（2026-09-15）
+
+**admin-web 前端 22 页全部接通后端**（动态路由 component 自动匹配，无 Placeholder 残留）+ F-SYS-01 后端补缺：
+
+| 批次 | 页面 | 接口 | commit | 飞书 |
+|---|---|---|---|---|
+| 补缺 | 平台后端 tenants/packages | F-SYS-01 | 2427235 | — |
+| F1 | system/Users（用户/角色）、system/OpLogs、biz/Orders | F-SYS-02/03 F-ORD-02 | e2499a7 | t100022 ✅ |
+| F2 | product/ 四页（原料/配方/商品/上架） | F-BOM-01~03 F-PRD-01~03 | fb17e2a | t100023 ✅ |
+| F3 | supply/ 四页（供应商/等级价/采购/库存） | F-SUP-01~04 F-INV-01~03 | e05ccbc | t100024 ✅ |
+| F4 | franchise/ 两页 + biz/ 报表三页 | F-FRA-01/02 F-RPT-01/02 | 3767f40 | t100025 ✅ |
+| F5 | biz/Members（列表+积分储值规则）、biz/Coupons | F-MEM-01~03 F-MKT-01 | 9182461 | t100026 ✅ |
+| F6 | store/ 五页（工作台/接单/POS收银/库存/日结） | F-ORD-02~04 | 7777d37 | t100027 ✅ |
+| F7 | platform/Tenants、platform/Packages | F-SYS-01 | 9e09965 | t100028 ✅ |
+
+**落地要点**：
+- **前端工程层**：`api/*.ts`（13 个模块）+ `types/*.ts`（15 个）+ `utils/format.ts`（fen2yuan/formatDateTime）+ http 补 patch；全部 `<script setup lang="ts">`，构建 `vue-tsc && vite build` 通过
+- **PageResult 关键修正**（4f3e347）：后端字段是 `list` 不是 `records`——骨架 types/api.ts 笔误会致所有分页页空白，已全量替换
+- **金额红线前端版**：展示层一律 fen2yuan(分)；输入层元↔分换算仅在表单提交前 `Math.round(x*100)`（券/POS 实收）；TierPrices/供货绑定直接以“分”为单位输入并标注
+- **平台前缀**：/api/admin/v1/**（R1）与 baseURL /api/v1 不同——request.ts 支持 url 以 `/api/` 开头即视为完整路径不拼接 baseURL
+- **POS 收银流程**（store/Pos）：菜单取 `GET /listings?storeId`（sellable=0 置灰）→ 购物车 → `POST /pos/orders`（即时扣库存）→ 收款 dialog（渠道 1现金/2微信Native/3储值禁用；现金找零=实收-应收前端预览）→ `POST /pos/orders/{id}/pay`；POS 渠道编号与订单表编号不同已在 types/order.ts 注释
+- **权限**：v-permission 仅用于菜单种子里真实存在的 perms（order:*/pos:create/inv:*/purchase:*/bom:*/product:*/listing:*）；加盟/报表/会员/营销/平台模块后端无按钮 perms，前端按菜单可见性控制（与后端一致）
+- **门店选择**：store/ 五页与 Listings/Purchases 各自内嵌门店下拉（默认第一店），watch(storeId) 联动刷新
+- **订单状态机前端**：2已支付→接单→3制作中→制作完成→4待取餐→核销→5已完成；6取消/7退款终态（constants/order.ts Map 驱动，biz/Orders 与 store/Orders 复用）
+- **角色缺口说明**（页内 alert/注释标注）：后台无会员余额/流水接口（C 端 /me 域）、券模板无 GET /{id}（编辑行内数据回填）、订单取消/退款无管理端 endpoint（按钮权限有接口无——不渲染按钮）、角色-菜单授权无回显接口（Users 角色页只读提示）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -109,9 +140,9 @@ bc080d8 fix(payment): 回调处理自调用绕过事务代理——改Transactio
 
 ## 4. 接手后的建议顺序
 
-1. **admin-web 前端逐模块接接口**（后端契约 F-XXX 已全量落地，Swagger `/swagger-ui.html` 可对照）——登录/加盟/BOM/供应链/商品/库存/订单/会员/营销/报表
-2. 前端逐模块替换 `views/error/Placeholder.vue`（`component` 字段如 `product/Materials` → `src/views/product/Materials.vue`，动态路由自动匹配）
-3. 二期 backlog（按优先级）：C 端会话化（token 替换 X-Member-Id）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal）、微信 V3 验签
+1. **端到端冒烟**（推荐先做）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，用种子账号走一遍：R2 登录 → BOM 建配方 → 商品发布 → 门店上架 → store/Pos 收银下单收款 → 报表/日结查看数字回流
+2. 二期 backlog（按优先级）：管理端订单取消/退款 endpoint（按钮权限已种）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、C 端会话化（token 替换 X-Member-Id）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签
+3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）
 4. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**
 
 ## 5. 权威文档索引（冲突时以此为准）
