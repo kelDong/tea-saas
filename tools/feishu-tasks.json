@@ -102,6 +102,13 @@
                      "status":  "completed",
                      "completed":  "2026-09-07 14:17"
                  },
+    "M4:批次5-会员营销前端两页（F-MEM-01~03 F-MKT-01）":  {
+                                                  "task_id":  "t100026",
+                                                  "guid":  "c59696a4-bf34-4e9d-82e6-00d421763cff",
+                                                  "created":  "2026-09-15 15:02",
+                                                  "status":  "completed",
+                                                  "completed":  "2026-09-15 15:02"
+                                              },
     "M2:SQL 初始化脚本":  {
                          "task_id":  "t100007",
                          "guid":  "51772599-b346-4932-a934-44a6eda04af9",
