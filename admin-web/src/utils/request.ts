@@ -76,5 +76,6 @@ export const http = {
   get: <T>(url: string, params?: object) => request<T>({ url, method: 'get', params }),
   post: <T>(url: string, data?: object) => request<T>({ url, method: 'post', data }),
   put: <T>(url: string, data?: object) => request<T>({ url, method: 'put', data }),
+  patch: <T>(url: string, data?: object) => request<T>({ url, method: 'patch', data }),
   delete: <T>(url: string) => request<T>({ url, method: 'delete' }),
 }
