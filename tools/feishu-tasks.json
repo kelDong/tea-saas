@@ -26,6 +26,13 @@
                                      "status":  "completed",
                                      "completed":  "2026-09-10 16:52"
                                  },
+    "M4:批次4-加盟+报表前端五页（F-FRA-01~02 F-RPT-01~02）":  {
+                                                      "task_id":  "t100025",
+                                                      "guid":  "27641f89-1117-41c7-967d-2d40eba26feb",
+                                                      "created":  "2026-09-15 14:55",
+                                                      "status":  "completed",
+                                                      "completed":  "2026-09-15 14:55"
+                                                  },
     "并行:种子品牌访谈":  {
                       "status":  "open",
                       "task_id":  "t100010",
