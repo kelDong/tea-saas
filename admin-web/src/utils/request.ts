@@ -66,8 +66,12 @@ instance.interceptors.response.use(
   },
 )
 
-/** 解包 Result&lt;T&gt;：成功返回 data，失败 reject（ApiError 或原始错误） */
+/** 解包 Result<T>：成功返回 data，失败 reject（ApiError 或原始错误）
+ *  url 以 /api/ 开头视为完整路径（如平台侧 /api/admin/v1/**），不拼接 baseURL */
 async function request<T>(config: AxiosRequestConfig): Promise<T> {
+  if (config.url?.startsWith('/api/')) {
+    config.baseURL = ''
+  }
   const response = await instance.request<Result<T>>(config)
   return response.data.data
 }
