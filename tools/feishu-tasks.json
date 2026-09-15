@@ -53,6 +53,13 @@
                                                "status":  "completed",
                                                "completed":  "2026-09-11 09:11"
                                            },
+    "M4:批次7-平台前端两页（F-SYS-01）":  {
+                                    "task_id":  "t100028",
+                                    "guid":  "18f94f57-76c9-45aa-a234-fbf72319b233",
+                                    "created":  "2026-09-15 15:15",
+                                    "status":  "completed",
+                                    "completed":  "2026-09-15 15:15"
+                                },
     "M4:批次1-系统订单前端接接口+F-SYS-01品牌套餐后端补齐（F-SYS-02/04 F-ORD-02/03）":  {
                                                                        "task_id":  "t100022",
                                                                        "guid":  "d39a9672-2ae9-4dd0-aa40-305dba3868e5",
