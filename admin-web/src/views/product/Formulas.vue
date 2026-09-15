@@ -23,7 +23,7 @@ async function load() {
   loading.value = true
   try {
     const result = await formulaApi.page({ ...query, keyword: query.keyword || undefined })
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false
@@ -40,7 +40,7 @@ const materials = ref<BomMaterial[]>([])
 
 async function loadMaterials() {
   const result = await materialApi.page({ page: 1, size: 100 })
-  materials.value = result.records
+  materials.value = result.list
 }
 
 // ---------- 新增/编辑（明细行动态编辑） ----------

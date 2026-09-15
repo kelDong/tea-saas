@@ -14,7 +14,7 @@ async function load() {
   loading.value = true
   try {
     const result = await opLogApi.page({ ...query, module: query.module || undefined })
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false

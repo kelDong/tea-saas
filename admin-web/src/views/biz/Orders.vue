@@ -20,14 +20,14 @@ const storeNameMap = computed(() => new Map(stores.value.map((store) => [store.i
 
 async function loadStores() {
   const result = await franchiseApi.storePage({ page: 1, size: 100 })
-  stores.value = result.records
+  stores.value = result.list
 }
 
 async function load() {
   loading.value = true
   try {
     const result = await orderApi.page(query)
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false

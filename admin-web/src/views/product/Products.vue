@@ -38,7 +38,7 @@ async function load() {
       categoryId: query.categoryId,
       publishStatus: query.publishStatus,
     })
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false
@@ -62,7 +62,7 @@ const formulas = ref<BomFormula[]>([])
 
 async function loadFormulas() {
   const result = await formulaApi.page({ page: 1, size: 100 })
-  formulas.value = result.records
+  formulas.value = result.list
 }
 
 // ---------- 新增/编辑（规格/选项动态行） ----------

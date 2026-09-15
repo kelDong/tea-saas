@@ -17,7 +17,7 @@ async function load() {
   loading.value = true
   try {
     const result = await materialApi.page({ ...query, keyword: query.keyword || undefined })
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false

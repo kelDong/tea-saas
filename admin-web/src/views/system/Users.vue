@@ -21,7 +21,7 @@ async function loadUsers() {
   loading.value = true
   try {
     const result = await sysUserApi.page({ ...query, keyword: query.keyword || undefined })
-    rows.value = result.records
+    rows.value = result.list
     total.value = result.total
   } finally {
     loading.value = false
@@ -40,7 +40,7 @@ const stores = ref<FraStore[]>([])
 async function loadOptions() {
   roles.value = await sysRoleApi.list()
   const storePage = await franchiseApi.storePage({ page: 1, size: 100 })
-  stores.value = storePage.records
+  stores.value = storePage.list
 }
 
 // ---------- 新增/编辑 ----------

@@ -14,9 +14,9 @@ const storeId = ref<number | undefined>(undefined)
 
 async function loadStores() {
   const result = await franchiseApi.storePage({ page: 1, size: 100 })
-  stores.value = result.records
-  if (result.records.length) {
-    storeId.value = result.records[0].id
+  stores.value = result.list
+  if (result.list.length) {
+    storeId.value = result.list[0].id
   }
 }
 
@@ -48,7 +48,7 @@ async function loadAvailable() {
       ...availableQuery,
       keyword: availableQuery.keyword || undefined,
     })
-    availableRows.value = result.records
+    availableRows.value = result.list
     availableTotal.value = result.total
   } finally {
     availableLoading.value = false

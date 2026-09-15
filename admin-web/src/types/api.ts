@@ -5,9 +5,9 @@ export interface Result<T = unknown> {
   data: T
 }
 
-/** 分页返回结构（tea-common PageResult&lt;T&gt;） */
+/** 分页返回结构（tea-common PageResult&lt;T&gt;：list/total/page/size，接口协议 1.2） */
 export interface PageResult<T> {
-  records: T[]
+  list: T[]
   total: number
   page: number
   size: number
