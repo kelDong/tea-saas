@@ -1,11 +1,15 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M4 收官（admin-web 前端 22 页 + F-SYS-01 后端补缺全部提交，管理后台端到端打通）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M5（Review 批次 R1 落地 + 端到端冒烟全链路闭环）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+9aedbcb fix(payment): Review批次R1——支付回调租户上下文修复+重试状态守卫 F-PAY-01
+ca10542 docs(review): 全项目Review修复方案v1.0——回调租户上下文/C端会话化/幂等唯一索引等四项待拍板
+64ec365 fix(admin-web): 登录昵称持久化localStorage——刷新后顶栏不再显示未命名用户 F-SYS-03
+23b4e46 fix(backend): 端到端回测四项修复——Jackson雪花ID防JS精度丢失404/角色表豁免租户插件/登录注入租户上下文/JDBC字符集UTF-8 F-SYS-03 F-FRA-01
 527d94c chore(tools): 飞书任务清单同步——批次7平台前端两页t100028完成记录
 9e09965 feat(admin-web): F7平台两页接后端——品牌租户CRUD启停/套餐列表 R1专属 F-SYS-01
 4a1065b chore(tools): 飞书任务清单同步——批次6门店端前端五页t100027完成记录
@@ -125,6 +129,33 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - **门店选择**：store/ 五页与 Listings/Purchases 各自内嵌门店下拉（默认第一店），watch(storeId) 联动刷新
 - **订单状态机前端**：2已支付→接单→3制作中→制作完成→4待取餐→核销→5已完成；6取消/7退款终态（constants/order.ts Map 驱动，biz/Orders 与 store/Orders 复用）
 - **角色缺口说明**（页内 alert/注释标注）：后台无会员余额/流水接口（C 端 /me 域）、券模板无 GET /{id}（编辑行内数据回填）、订单取消/退款无管理端 endpoint（按钮权限有接口无——不渲染按钮）、角色-菜单授权无回显接口（Users 角色页只读提示）
+
+## 2.8 M5 —— ✅ Review 批次 R1 + 端到端冒烟收官（2026-09-16）
+
+**Review 修复方案批次 R1 落地**（`docs/茶饮SaaS-Review修复方案.md` §1 + §3.2，commit 9aedbcb）：
+
+- `PayPaymentMapper.selectByPaymentNoForCallback`：`@InterceptorIgnore` 绕过租户插件按全局唯一单号反查（规范 6.1 声明式例外，对齐 `selectByUsernameForLogin` 惯例）
+- `handleCallback`：反查流水 → 显式 `TenantContext.setTenantId(payment.getTenantId())` → 主体逻辑抽到 `processCallback` → try/finally clear（与 TenantCleanupInterceptor 双保险）
+- `scheduleRetry`：追加 `.eq(status, TASK_PENDING)` 状态守卫
+- **修复前**：纯网关回调（无登录态）被插件改写 `tenant_id=0` 查不到流水必挂；**修复后冒烟验证一次成功**
+
+**端到端冒烟全链路闭环**（brand01/fra01/store01 三角色 + C 端会员）：
+
+| 环节 | 结果 |
+|---|---|
+| brand01(R2) 开 fra01(R6) 加盟商账号 | userId=2100026300419776514 ✓ |
+| store01(R7) 盘点入库存（珍珠/红茶/牛奶） | 10000/100000/50000 ✓ |
+| fra01(R6) 上架商品（珍珠奶茶 1600 分） | listing=2100026540141027329 ✓ |
+| POS 现金：2 杯应收 3200 实收 4000 | **找零 800** ✓ |
+| POS 微信 Native：即时确认落账 | 流水 MOCKN 前缀 ✓ |
+| C 端微信单（X-Tenant-Id/X-Member-Id 头） | wx-jsapi 出 payParams ✓ |
+| **无登录态回调**（不带任何头 POST /api/notify/wx-pay/callback） | 订单 1→2、流水 1→2、task tenant_id=9001 status=2、积分 +16 ✓ |
+| 库存精确扣减 4 杯用量 | 珍珠 9800/红茶 98800/牛奶 49200 ✓ |
+| 报表/日结回流 | 3 单 6400 分、微信 3200、热销 4 杯、看板/排行/库存总览全对 ✓ |
+
+**冒烟环境事实**（本地 Docker 演示库）：冒烟账号 brand01/fra01/store01 密码均为 `Smoke2026x`；门店"回测门店"ST-001（id=2099772853422260225）；会员茶友4077（openid=smoke-openid-001）。后端启动：`cd backend-api && mvn -q -DskipTests install && java -jar tea-server/target/tea-server-1.0.0-SNAPSHOT.jar`（多模块下 `mvn -pl tea-server spring-boot:run` 会在根 POM 错位执行，勿用）。
+
+**Review 方案剩余**：批次 R2（§3.1 幂等唯一索引 2 条 ALTER + §3.3 积分悲观锁）、批次 R3（§2 C 端会话化，涉及契约升版 + token 有效期拍板）、§4 次要项——详见方案文档 §5/§6。
 
 ## 3. 关键实现事实（接手者容易踩的坑）
 
