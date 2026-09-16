@@ -17,6 +17,7 @@ import com.teasaas.member.mapper.MemPointsLogMapper;
 import com.teasaas.member.service.MemPointsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,6 +75,9 @@ public class MemPointsServiceImpl implements MemPointsService {
         if (points <= 0 || alreadyLogged(orderNo, BIZ_USE)) {
             return; // 幂等
         }
+        // 悲观锁串行化（Review §3.3 方案 A）：SUM(流水) 先查后写在并发双单下可双双通过刷负，
+        // 锁会员行后第二笔等第一笔提交才读到最新 SUM
+        memMemberMapper.lockById(memberId);
         int before = sumPoints(memberId);
         if (before < points) {
             throw new BizException(ErrorCode.POINTS_NOT_ENOUGH);
@@ -125,7 +129,13 @@ public class MemPointsServiceImpl implements MemPointsService {
         entry.setBizType(bizType);
         entry.setBizNo(orderNo);
         entry.setCreateTime(LocalDateTime.now());
-        memPointsLogMapper.insert(entry);
+        try {
+            memPointsLogMapper.insert(entry);
+        } catch (DuplicateKeyException e) {
+            // uk_points_log_biz 冲突=并发重放同单同类型（Review §3.1）：抛异常回滚本轮，防双记
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "积分变动重复提交（bizNo=" + orderNo + ", bizType=" + bizType + "），已回滚");
+        }
     }
 
     /** 可用积分 = SUM(change_points)（走 idx_points_log 索引；聚合列名用 QueryWrapper 字符串式） */

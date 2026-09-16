@@ -475,7 +475,7 @@ tenant（品牌租户）
 | biz_no | VARCHAR(32) | Y | 关联单号（订单号/采购单号） |
 | remark | VARCHAR(128) | Y | 备注 |
 
-> 索引：`idx_stock_log(tenant_id, store_id, biz_type)`、`idx_stock_log_biz(tenant_id, biz_no)`
+> 索引：`idx_stock_log(tenant_id, store_id, biz_type)`；幂等唯一键 `uk_stock_log_biz(tenant_id, biz_no, biz_type, material_id)`（v1.2 / Review §3.1：同单同类型同原料仅一条，DB 兜底防并发双扣——粒度含 material_id 因一单多原料各记一行，biz_no 为 NULL 的流水不受约束）
 
 ---
 
@@ -605,7 +605,7 @@ tenant（品牌租户）
 | biz_type | TINYINT | 1 消费获得 / 2 抵现扣除 / 3 活动赠送 / 4 过期扣除 |
 | biz_no | VARCHAR(32) | 关联单号 |
 
-> 索引：`idx_points_log(member_id, create_time)`
+> 索引：`idx_points_log(member_id, create_time)`；幂等唯一键 `uk_points_log_biz(tenant_id, biz_no, biz_type)`（v1.2 / Review §3.1：同单同类型仅一条，DB 兜底防回调重放双记；biz_no 为 NULL 不受约束）
 
 ### 10.4 `mem_wallet` 储值账户表（F-MEM-03）
 

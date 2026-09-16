@@ -473,7 +473,9 @@ CREATE TABLE `inv_stock_log` (
   `create_time` DATETIME      NULL,
   PRIMARY KEY (`id`),
   KEY `idx_stock_log` (`tenant_id`, `store_id`, `biz_type`),
-  KEY `idx_stock_log_biz` (`tenant_id`, `biz_no`)
+  -- 幂等唯一键（Review §3.1）：同租户同业务单同类型同原料仅一条；粒度含 material_id
+  -- 因一单多原料各记一行（三列键会撞）；biz_no 为 NULL 的流水不受唯一约束
+  UNIQUE KEY `uk_stock_log_biz` (`tenant_id`, `biz_no`, `biz_type`, `material_id`)
 ) ENGINE=InnoDB COMMENT='库存变动流水';
 
 -- ============================================================
@@ -633,7 +635,9 @@ CREATE TABLE `mem_points_log` (
   `biz_no`         VARCHAR(32) NULL,
   `create_time`    DATETIME NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_points_log` (`tenant_id`, `member_id`, `create_time`)
+  KEY `idx_points_log` (`tenant_id`, `member_id`, `create_time`),
+  -- 幂等唯一键（Review §3.1）：同租户同业务单同类型仅一条（防回调重放双记）；biz_no 为 NULL 不受约束
+  UNIQUE KEY `uk_points_log_biz` (`tenant_id`, `biz_no`, `biz_type`)
 ) ENGINE=InnoDB COMMENT='积分流水';
 
 DROP TABLE IF EXISTS `mem_wallet`;

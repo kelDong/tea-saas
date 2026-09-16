@@ -150,7 +150,9 @@ public class InvStockServiceImpl implements InvStockService {
     }
 
     /**
-     * 写流水：更新后回读现值推算 after/before（保证 log 链与 SUM 对账成立）
+     * 写流水：更新后回读现值推算 after/before（保证 log 链与 SUM 对账成立）。
+     * 幂等 DB 兜底（Review §3.1）：uk_stock_log_biz 冲突说明并发下同单同原料已处理过——
+     * 必须抛异常回滚整单（含本轮扣减/入库），禁止静默跳过，否则 SUM(log)≠stock 破坏对账。
      */
     private void writeLog(Long storeId, Long materialId, BigDecimal signedChange, int bizType, String bizNo, String remark) {
         InvStoreMaterialStock stock = stockMapper.selectOne(new LambdaQueryWrapper<InvStoreMaterialStock>()
@@ -171,7 +173,12 @@ public class InvStockServiceImpl implements InvStockService {
         log.setRemark(remark);
         log.setCreateBy(currentUserIdOrNull());
         log.setCreateTime(LocalDateTime.now());
-        stockLogMapper.insert(log);
+        try {
+            stockLogMapper.insert(log);
+        } catch (DuplicateKeyException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "库存变动重复提交（bizNo=" + bizNo + ", materialId=" + materialId + "），已回滚");
+        }
     }
 
     /** C 端/定时任务上下文无登录态，容忍 null */
