@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M5（Review 批次 R1/R2/R3 全部落地 + 端到端冒烟全链路闭环）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M6（视觉规范主题层落地）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+b881113 feat(admin-web): 视觉规范主题层——原型暖茶调对齐token/EP主题/布局壳/三范例页
 5df7911 feat(framework+member): Review批次R3——C端接口会话化：wx-login签发会员token，/api/app统一Bearer鉴权 F-MEM-01
 ccbfc40 fix(inventory+member): Review批次R2——库存/积分流水幂等唯一键DB兜底+积分抵扣悲观锁 F-INV-02 F-MEM-02
 988558b docs(handoff): 进度快照更新至M5——Review批次R1落地+端到端冒烟全链路闭环（含冒烟环境事实与剩余R2/R3计划）
@@ -174,6 +175,17 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 **Review 方案剩余**：仅 §4 次要项（genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试）——详见方案文档 §5/§6。
 
+## 2.9 M6 —— ✅ 视觉规范主题层落地（2026-09-16，commit b881113）
+
+对齐本地 HTML 原型（`E:\DeepSeekHarness\prototype\admin-panel.html`，暖茶调：奶油底 `#FAF6EE`/琥珀 `#D97B29`/深棕侧栏 `#2E251B`），**规范文档 `docs/茶饮SaaS-视觉规范.md` 为唯一视觉事实源**：
+
+- `styles/` 三层落地：tokens.css（`--ts-*` 品牌 token）→ theme.css（EP 2.9.1 变量覆盖+组件补丁）→ patterns.css（`.page-toolbar/.stat-card/.mono` 等共享模式类，经 index.css 接线）
+- AdminLayout 重造（深棕侧栏+琥珀激活轨，**删 el-menu 内联颜色 props**——内联 style 压过一切 CSS）；LoginView 品牌化；范例页 ×3（Workspace/Materials/Coupons）
+- 其余 ~19 页经 EP 变量层免费获得约 80% 新观感，**待分批收敛**（每页仅：工具栏类名换 `.page-toolbar`、删 scoped 重复、数值列加 `.mono`、按需 `.page-note`；清单见规范 §7）
+- **实测大坑（规范 §3.2 陷阱 4）**：EP 组件级变量（`--el-table-*/--el-card-*/--el-dialog-*/--el-input-*/--el-pagination-*`）定义在**组件选择器**上而非 `:root`，`:root` 覆盖完全无效——必须在同名组件选择器上覆盖（theme.css 已按此写，改样式前必读）
+- **待 Owner 拍板**：warning 金黄 `#C9982F` 为提案色（原型未定义），满减券类型标签在用，备选 `#A98E3B` 橄榄金
+- 已浏览器实测：登录/工作台/原料/优惠券四页 computed-style 级验证（表头暖底/斑马纹/胶囊标签/弹窗 16px 圆角/主按钮琥珀/侧栏激活轨全部生效）；`npm run build` 通过
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -188,10 +200,11 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **端到端冒烟**（推荐先做）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，用种子账号走一遍：R2 登录 → BOM 建配方 → 商品发布 → 门店上架 → store/Pos 收银下单收款 → 报表/日结查看数字回流
-2. 二期 backlog（按优先级）：管理端订单取消/退款 endpoint（按钮权限已种）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、C 端会话化（token 替换 X-Member-Id）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签
-3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）
-4. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**
+1. **admin-web 剩余 ~19 页视觉收敛**（M6 后续，量小）：照范例页（Materials=表格页/Coupons=表格+弹窗/Workspace=仪表盘）批量套模式类，清单见视觉规范 §7；改 EP 样式前必读 §3.2 陷阱记录（尤其陷阱 1/4）
+2. **端到端冒烟**（推荐先做）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，用种子账号走一遍：R2 登录 → BOM 建配方 → 商品发布 → 门店上架 → store/Pos 收银下单收款 → 报表/日结查看数字回流
+3. 二期 backlog（按优先级）：管理端订单取消/退款 endpoint（按钮权限已种）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、C 端会话化（token 替换 X-Member-Id）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签
+4. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）
+5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
