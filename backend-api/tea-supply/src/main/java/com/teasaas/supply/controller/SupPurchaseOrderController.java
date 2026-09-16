@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 采购单接口（F-SUP-03/04，接口需求 4.3）
- * 发起：仅 R6（P1-1）；确认/发货：R4；入库：R6/R7（名下门店）；取消：R4 / R6(未确认前)
+ * 发起：仅 R6（P1-1）；确认/发货/取消：R2/R4（R2 蕴含 R4 权限）；入库：R6/R7（名下门店）；R6 仅待确认前可取消
  */
 @Validated
 @RestController

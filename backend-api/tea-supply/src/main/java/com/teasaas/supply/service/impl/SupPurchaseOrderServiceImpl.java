@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * 所有状态转移均用条件更新（where status = 期望态）防并发，affected==0 时按当前状态抛
  * PURCHASE_STATUS_NOT_ALLOWED / PURCHASE_NOT_FOUND。</p>
  *
- * <p>数据权限：R4 查全租户；R6（及 R7 收货）按 sys_user_store 名下门店过滤。</p>
+ * <p>数据权限：R2/R4 查全租户；R6（及 R7 收货）按 sys_user_store 名下门店过滤。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -67,6 +67,7 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     /** 状态：5已取消 */
     private static final int STATUS_CANCELLED = 5;
 
+    private static final String ROLE_R2 = "R2";
     private static final String ROLE_R4 = "R4";
     private static final String ROLE_R6 = "R6";
     private static final String ROLE_R7 = "R7";
@@ -89,8 +90,8 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
                 .eq(status != null, SupPurchaseOrder::getStatus, status)
                 .eq(storeId != null, SupPurchaseOrder::getStoreId, storeId)
                 .orderByDesc(SupPurchaseOrder::getId);
-        // 数据权限：R4 查全租户（租户插件兜底）；否则（R6/R7）过滤名下门店
-        if (!hasRole(ROLE_R4)) {
+        // 数据权限：R2/R4 查全租户（租户插件兜底）；否则（R6/R7）过滤名下门店
+        if (!isHqSupply()) {
             List<Long> storeIds = listBoundStoreIds(SecurityUtils.getUserId());
             if (storeIds.isEmpty()) {
                 return PageResult.empty(page, size);
@@ -196,7 +197,7 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void confirm(Long id) {
-        requireRole(ROLE_R4, "仅总部供应链可确认计价");
+        requireHqSupply("仅总部供应链可确认计价");
         requireExists(id);
         int affected = supPurchaseOrderMapper.update(null, new LambdaUpdateWrapper<SupPurchaseOrder>()
                 .set(SupPurchaseOrder::getStatus, STATUS_CONFIRMED)
@@ -210,7 +211,7 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void ship(Long id) {
-        requireRole(ROLE_R4, "仅总部供应链可发货");
+        requireHqSupply("仅总部供应链可发货");
         requireExists(id);
         int affected = supPurchaseOrderMapper.update(null, new LambdaUpdateWrapper<SupPurchaseOrder>()
                 .set(SupPurchaseOrder::getStatus, STATUS_SHIPPED)
@@ -256,8 +257,8 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     public void cancel(Long id) {
         SupPurchaseOrder order = requireExists(id);
         int affected;
-        if (hasRole(ROLE_R4)) {
-            // R4：未完成（待确认/已确认/已发货）均可取消
+        if (isHqSupply()) {
+            // R2/R4：未完成（待确认/已确认/已发货）均可取消
             affected = supPurchaseOrderMapper.update(null, new LambdaUpdateWrapper<SupPurchaseOrder>()
                     .set(SupPurchaseOrder::getStatus, STATUS_CANCELLED)
                     .eq(SupPurchaseOrder::getId, id)
@@ -315,10 +316,10 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
     }
 
     /**
-     * 门店数据权限：R4 不限制；其他角色要求 storeId 在当前用户 sys_user_store 绑定内
+     * 门店数据权限：R2/R4 不限制；其他角色要求 storeId 在当前用户 sys_user_store 绑定内
      */
     private void checkStoreAccess(Long storeId) {
-        if (hasRole(ROLE_R4)) {
+        if (isHqSupply()) {
             return;
         }
         if (!listBoundStoreIds(SecurityUtils.getUserId()).contains(storeId)) {
@@ -339,8 +340,13 @@ public class SupPurchaseOrderServiceImpl implements SupPurchaseOrderService {
         return SecurityUtils.getRolesFromSession().contains(roleCode);
     }
 
-    private void requireRole(String roleCode, String message) {
-        if (!hasRole(roleCode)) {
+    /** 总部供应链口径：R4 专职；R2 总部管理员蕴含 R4 权限（PRD 5.2，R2=R3+R4+R5 集合） */
+    private boolean isHqSupply() {
+        return hasRole(ROLE_R4) || hasRole(ROLE_R2);
+    }
+
+    private void requireHqSupply(String message) {
+        if (!isHqSupply()) {
             throw new BizException(ErrorCode.FORBIDDEN, message);
         }
     }

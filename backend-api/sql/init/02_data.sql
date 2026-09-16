@@ -99,12 +99,20 @@ DELETE FROM `sys_role_menu`;
 -- R1 平台管理员：平台菜单全部 + 业务菜单只读（不含按钮，menu_type<3）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 10000, 0, 1, m.id FROM `sys_menu` m WHERE m.`menu_type` < 3;
--- R2 总部管理员：全部菜单 + 全部按钮
+-- R2 总部管理员：R3+R4+R5 权限并集（品牌内最高权限）
+-- 不含门店端 700-799（R7/R8 专属）；不含 4031/4034——P1-1 采购发起权仅 R6、入库 R6/R7
+-- 注意：按钮 ID 为四位数段（3021~ BOM/商品、3041~ 上架、4031~ 供应链），页面为三位数段
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
-SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 11000, 0, 2, m.id FROM `sys_menu` m WHERE m.`id` >= 200;
--- R3 产品研发：产品目录 + BOM/商品按钮
+SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 11000, 0, 2, m.id FROM `sys_menu` m
+WHERE m.`id` BETWEEN 300 AND 399
+   OR m.`id` IN (3021, 3022, 3023, 3024, 3031, 3032, 3033, 3041, 3042, 3043)
+   OR (m.`id` BETWEEN 400 AND 499 AND m.`menu_type` < 3)
+   OR m.`id` IN (4032, 4033, 4035, 4041, 4042)
+   OR ((m.`id` BETWEEN 200 AND 299 OR m.`id` BETWEEN 500 AND 699) AND m.`menu_type` < 3);
+-- R3 产品研发：产品目录 + BOM/商品按钮（按钮在 3021~3033 段；上架按钮 3041~ 归 R6）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
-SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 12000, 0, 3, m.id FROM `sys_menu` m WHERE m.`id` BETWEEN 300 AND 399;
+SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 12000, 0, 3, m.id FROM `sys_menu` m
+WHERE m.`id` BETWEEN 300 AND 399 OR m.`id` BETWEEN 3021 AND 3033;
 -- R4 供应链：供应链目录 + 处理按钮（不含 purchase:submit）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 13000, 0, 4, m.id FROM `sys_menu` m
@@ -113,10 +121,10 @@ WHERE m.`id` BETWEEN 400 AND 499 AND (m.`menu_type` < 3 OR m.`id` = 4035 OR m.`i
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 14000, 0, 5, m.id FROM `sys_menu` m
 WHERE (m.`id` BETWEEN 200 AND 299 OR m.`id` BETWEEN 500 AND 699) AND m.`menu_type` < 3;
--- R6 加盟商：工作台/上架/库存/采购/订单/报表 + listing/inv/purchase:submit 按钮
+-- R6 加盟商：工作台/上架/库存/采购/订单/报表 + listing/inv/purchase 按钮（PRD 5.3：submit/receive/cancel 未确认前）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 15000, 0, 6, m.id FROM `sys_menu` m
-WHERE m.`id` IN (201, 204, 202, 304, 403, 404) OR m.`id` IN (3041,3042,3043,4031,4034,4041,4042);
+WHERE m.`id` IN (201, 204, 202, 304, 403, 404) OR m.`id` IN (3041,3042,3043,4031,4034,4035,4041,4042);
 -- R7 店长：门店端全部 + 订单/收银/盘点按钮（无退款→P2 决策：店长有退款，店员无）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 16000, 0, 7, m.id FROM `sys_menu` m
