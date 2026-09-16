@@ -101,3 +101,21 @@ export const POS_PAY_CHANNEL_MAP: Record<number, string> = {
   2: '微信收款码',
   3: '储值（未开放）',
 }
+
+/** 退款流水（PayRefund 实体直出，F-PAY-02 一期仅整单退） */
+export interface PayRefund {
+  id: number
+  refundNo: string
+  orderId: number
+  /** 退款金额（分），整单退=实付 */
+  amount: number
+  /** 1微信原路/2退储值 */
+  refundType: number
+  /** 券不退还=0 */
+  couponReturned: number
+  reason: string | null
+  /** 1处理中/2成功/3失败 */
+  status: number
+  refundTime: string | null
+  createTime: string
+}
