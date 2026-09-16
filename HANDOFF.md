@@ -1,11 +1,14 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M5（Review 批次 R1 落地 + 端到端冒烟全链路闭环）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M5（Review 批次 R1/R2/R3 全部落地 + 端到端冒烟全链路闭环）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+5df7911 feat(framework+member): Review批次R3——C端接口会话化：wx-login签发会员token，/api/app统一Bearer鉴权 F-MEM-01
+ccbfc40 fix(inventory+member): Review批次R2——库存/积分流水幂等唯一键DB兜底+积分抵扣悲观锁 F-INV-02 F-MEM-02
+988558b docs(handoff): 进度快照更新至M5——Review批次R1落地+端到端冒烟全链路闭环（含冒烟环境事实与剩余R2/R3计划）
 9aedbcb fix(payment): Review批次R1——支付回调租户上下文修复+重试状态守卫 F-PAY-01
 ca10542 docs(review): 全项目Review修复方案v1.0——回调租户上下文/C端会话化/幂等唯一索引等四项待拍板
 64ec365 fix(admin-web): 登录昵称持久化localStorage——刷新后顶栏不再显示未命名用户 F-SYS-03
@@ -130,7 +133,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - **订单状态机前端**：2已支付→接单→3制作中→制作完成→4待取餐→核销→5已完成；6取消/7退款终态（constants/order.ts Map 驱动，biz/Orders 与 store/Orders 复用）
 - **角色缺口说明**（页内 alert/注释标注）：后台无会员余额/流水接口（C 端 /me 域）、券模板无 GET /{id}（编辑行内数据回填）、订单取消/退款无管理端 endpoint（按钮权限有接口无——不渲染按钮）、角色-菜单授权无回显接口（Users 角色页只读提示）
 
-## 2.8 M5 —— ✅ Review 批次 R1 + 端到端冒烟收官（2026-09-16）
+## 2.8 M5 —— ✅ Review 批次 R1/R2/R3 全部落地 + 端到端冒烟收官（2026-09-16）
 
 **Review 修复方案批次 R1 落地**（`docs/茶饮SaaS-Review修复方案.md` §1 + §3.2，commit 9aedbcb）：
 
@@ -155,7 +158,21 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 **冒烟环境事实**（本地 Docker 演示库）：冒烟账号 brand01/fra01/store01 密码均为 `Smoke2026x`；门店"回测门店"ST-001（id=2099772853422260225）；会员茶友4077（openid=smoke-openid-001）。后端启动：`cd backend-api && mvn -q -DskipTests install && java -jar tea-server/target/tea-server-1.0.0-SNAPSHOT.jar`（多模块下 `mvn -pl tea-server spring-boot:run` 会在根 POM 错位执行，勿用）。
 
-**Review 方案剩余**：批次 R2（§3.1 幂等唯一索引 2 条 ALTER + §3.3 积分悲观锁）、批次 R3（§2 C 端会话化，涉及契约升版 + token 有效期拍板）、§4 次要项——详见方案文档 §5/§6。
+**Review 批次 R2 落地**（方案 §3.1 + §3.3，commit ccbfc40，飞书 t100030）：
+
+- `inv_stock_log` 加四列唯一键 `uk_stock_log_biz(tenant_id,biz_no,biz_type,material_id)`、`mem_points_log` 加 `uk_points_log_biz(tenant_id,biz_no,biz_type)`（方案原稿三列会撞"一单多原料流水"，修正为四列含 material_id；容器已同步 ALTER，01_schema.sql 与数据库设计文档 v1.2 已同步）
+- `InvStockServiceImpl.writeLog` / `MemPointsServiceImpl.writeLog`：insert 捕获 `DuplicateKeyException` → 抛 `BizException` 回滚（**不静默收尾**——会破坏 SUM(log)=stock 对账口径）；实测 1062 拦截、NULL biz_no 豁免（期初/盘点流水）
+- `MemPointsServiceImpl.useForOrder`：`sumPoints` 前先 `memMemberMapper.lockById(memberId)`（FOR UPDATE 悲观锁）防并发超抵
+
+**Review 批次 R3 落地**（方案 §2 C 端会话化，commit 5df7911，飞书 t100031）：
+
+- `MemberTokenService`（framework/security/context）：token=UUID，Redis `teasaas:member:token:{token} → "tenantId:memberId"`，TTL 7 天（`tea.app.member-token-ttl-days` 可配）；与 Sa-Token 并存不进 StpUtil
+- `AppMemberInterceptor` 注册于 `/api/app/**`（排除 wx-login/stores 两公开）：① `Authorization: Bearer` → 解析注入 MemberContext+TenantContext；② 兼容期（一个迭代后硬切）双头 `X-Tenant-Id`/`X-Member-Id` → WARN 放行；③ 皆无 → NotLoginException → HTTP 401 code=2（对齐 B 端）
+- wx-login 事务提交后签发 token（WxLoginVO 加 token 字段）；members/orders/payments/coupons 四 Controller 删手动头解析改读 `MemberContext.getMemberId()`（preview 匿名语义取消——小程序进入即静默登录）
+- **注意**：javadoc 里写 `stores/*/products` 会被 `*/` 提前关闭注释块导致编译"非法字符"——通配路径在 javadoc 里要转义写法
+- 接口需求文档 v1.1（1.1 节 C 端鉴权契约：公开接口/兼容期/401 口径）；已验证：Bearer 查会员/preview 试算 200、无 token 与伪 token 401、双头放行且 WARN 落日志
+
+**Review 方案剩余**：仅 §4 次要项（genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试）——详见方案文档 §5/§6。
 
 ## 3. 关键实现事实（接手者容易踩的坑）
 
