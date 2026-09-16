@@ -82,4 +82,6 @@ export const http = {
   put: <T>(url: string, data?: object) => request<T>({ url, method: 'put', data }),
   patch: <T>(url: string, data?: object) => request<T>({ url, method: 'patch', data }),
   delete: <T>(url: string) => request<T>({ url, method: 'delete' }),
+  /** FormData 上传：不手动设 Content-Type（axios 自动带 boundary），单独放宽超时 */
+  upload: <T>(url: string, data: FormData) => request<T>({ url, method: 'post', data, timeout: 60000 }),
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadRequestOptions } from 'element-plus'
 
 import { formulaApi } from '@/api/bom'
 import { categoryApi, productApi } from '@/api/product'
+import { uploadApi } from '@/api/upload'
 import type { BomFormula } from '@/types/bom'
 import type { PrdCategory, PrdProduct, ProductSpec } from '@/types/product'
 import { fen2yuan, formatDateTime } from '@/utils/format'
@@ -152,6 +153,33 @@ function removeOption(spec: ProductSpec, index: number) {
   spec.options.splice(index, 1)
 }
 
+// ---------- 图片上传（MinIO，form.image 为唯一事实源） ----------
+const uploading = ref(false)
+
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+function beforeImageUpload(file: File): boolean {
+  if (!IMAGE_TYPES.includes(file.type)) {
+    ElMessage.warning('仅支持 jpg/jpeg/png/webp/gif 图片')
+    return false
+  }
+  if (file.size > IMAGE_MAX_BYTES) {
+    ElMessage.warning('图片大小不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+async function doUploadImage(options: UploadRequestOptions): Promise<void> {
+  uploading.value = true
+  try {
+    form.image = await uploadApi.upload(options.file)
+  } finally {
+    uploading.value = false
+  }
+}
+
 async function submit() {
   await formRef.value?.validate()
   if (form.specs.some((spec) => !spec.specName || spec.options.some((option) => !option.optionName))) {
@@ -278,6 +306,19 @@ onMounted(() => {
           <el-table v-loading="loading" :data="rows" stripe>
             <el-table-column prop="productCode" label="编码" min-width="120" />
             <el-table-column prop="productName" label="商品名" min-width="150" />
+            <el-table-column label="图片" width="70">
+              <template #default="{ row }">
+                <el-image
+                  v-if="row.image"
+                  :src="row.image"
+                  fit="cover"
+                  class="table-thumb"
+                  :preview-src-list="[row.image]"
+                  preview-teleported
+                />
+                <span v-else>—</span>
+              </template>
+            </el-table-column>
             <el-table-column label="分类" width="100">
               <template #default="{ row }">
                 {{ row.categoryId != null ? (categoryMap.get(row.categoryId) ?? `分类${row.categoryId}`) : '—' }}
@@ -373,8 +414,38 @@ onMounted(() => {
         <el-form-item label="建议售价(元)" prop="suggestPriceYuan">
           <el-input-number v-model="form.suggestPriceYuan" :min="0.01" :step="1" :precision="2" class="full" />
         </el-form-item>
-        <el-form-item label="图片URL">
-          <el-input v-model="form.image" maxlength="255" />
+        <el-form-item label="图片">
+          <div v-loading="uploading" class="full image-block">
+            <div class="image-row">
+              <el-upload
+                :show-file-list="false"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                :before-upload="beforeImageUpload"
+                :http-request="doUploadImage"
+              >
+                <div class="image-card">
+                  <el-image
+                    v-if="form.image"
+                    :src="form.image"
+                    fit="cover"
+                    class="image-fill"
+                    :preview-src-list="[form.image]"
+                    preview-teleported
+                    @click.stop
+                  />
+                  <span v-else class="image-plus">+</span>
+                </div>
+              </el-upload>
+              <el-button v-if="form.image" link type="danger" @click="form.image = ''">移除</el-button>
+            </div>
+            <el-input
+              v-model="form.image"
+              placeholder="或直接粘贴图片 URL（外部图床兜底）"
+              maxlength="255"
+              size="small"
+              class="image-url-input"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" maxlength="255" />
@@ -500,5 +571,49 @@ onMounted(() => {
 
 .option-name {
   flex: 1;
+}
+
+.image-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.image-card:hover {
+  border-color: var(--el-color-primary);
+}
+
+.image-plus {
+  font-size: 24px;
+  color: var(--el-text-color-placeholder);
+}
+
+.image-fill {
+  width: 100%;
+  height: 100%;
+}
+
+.image-url-input {
+  margin-top: 8px;
+}
+
+.table-thumb {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
 }
 </style>

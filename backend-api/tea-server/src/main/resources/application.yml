@@ -19,6 +19,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  servlet:
+    multipart:
+      # Spring 默认 1MB 会先拦掉上传请求；业务层另有 tea.oss.max-size 精确校验（5MB）
+      max-file-size: ${MULTIPART_MAX_FILE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST:12MB}
 
 # MyBatis-Plus
 mybatis-plus:
@@ -48,6 +53,13 @@ tea:
   app:
     # C 端会员会话 token 有效期（天），正式运营可与 Sa-Token 会话时长对齐调整
     member-token-ttl-days: 7
+  oss:
+    # MinIO 对象存储（本地复用既有 minio 容器：9000 API / 9001 控制台，默认 minioadmin/minioadmin）
+    endpoint: ${OSS_ENDPOINT:http://localhost:9000}
+    access-key: ${OSS_ACCESS_KEY:minioadmin}
+    secret-key: ${OSS_SECRET_KEY:minioadmin}
+    bucket-name: ${OSS_BUCKET:tea-saas}
+    max-size: 5MB
 
 # 接口文档
 springdoc:

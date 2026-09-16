@@ -16,6 +16,9 @@ public enum ErrorCode {
     PARAM_ERROR(1, "参数错误"),
     UNAUTHORIZED(2, "未登录或会话过期"),
     FORBIDDEN(3, "无权限"),
+    FILE_TYPE_NOT_ALLOWED(4, "仅支持 jpg/jpeg/png/webp/gif 图片"),
+    FILE_TOO_LARGE(5, "文件大小超过限制"),
+    FILE_UPLOAD_FAIL(6, "文件上传失败，请稍后重试"),
     SYSTEM_ERROR(999999, "系统繁忙，请稍后重试"),
 
     /* 01 系统 */
