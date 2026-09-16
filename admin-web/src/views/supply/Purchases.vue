@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 
 import { materialApi } from '@/api/bom'
 import { franchiseApi } from '@/api/franchise'
+import { inventoryApi } from '@/api/inventory'
 import { purchaseApi } from '@/api/supply'
 import type { BomMaterial } from '@/types/bom'
+import type { StockWarningVO } from '@/types/inventory'
 import type { PurchaseOrderDetailVO, SupPurchaseOrder } from '@/types/supply'
 import { fen2yuan, formatDateTime } from '@/utils/format'
 
@@ -95,6 +97,60 @@ function addItem() {
 
 function removeItem(index: number) {
   createForm.items.splice(index, 1)
+}
+
+// ---------- 发起弹窗：库存低预警联动（F-SUP-03 AC「从门店库存低预警选品下单」） ----------
+const warnings = ref<StockWarningVO[]>([])
+const warningLoading = ref(false)
+
+async function loadWarnings() {
+  if (!createForm.storeId) {
+    warnings.value = []
+    return
+  }
+  warningLoading.value = true
+  try {
+    warnings.value = await inventoryApi.warnings(createForm.storeId)
+  } finally {
+    warningLoading.value = false
+  }
+}
+
+watch(() => createForm.storeId, loadWarnings)
+
+/** 缺口补回阈值，向上取 3 位小数并兜底最小采购量 */
+function suggestedQty(gap: number): number {
+  return Math.max(Number(gap.toFixed(3)), 0.001)
+}
+
+function bringWarning(row: StockWarningVO) {
+  if (createForm.items.some((item) => item.materialId === row.materialId)) {
+    ElMessage.info(`${row.materialName} 已在采购明细中`)
+    return
+  }
+  dropEmptyItems()
+  createForm.items.push({ materialId: row.materialId, qty: suggestedQty(row.gap) })
+}
+
+function bringAllWarnings() {
+  const existing = new Set(createForm.items.map((item) => item.materialId).filter((id) => id != null))
+  const additions = warnings.value
+    .filter((row) => !existing.has(row.materialId))
+    .map((row) => ({ materialId: row.materialId, qty: suggestedQty(row.gap) }))
+  if (!additions.length) {
+    ElMessage.info('预警原料均已在采购明细中')
+    return
+  }
+  dropEmptyItems()
+  createForm.items.push(...additions)
+}
+
+function dropEmptyItems() {
+  for (let i = createForm.items.length - 1; i >= 0; i--) {
+    if (createForm.items[i].materialId == null && createForm.items[i].qty == null) {
+      createForm.items.splice(i, 1)
+    }
+  }
 }
 
 async function submitCreate() {
@@ -237,12 +293,49 @@ onMounted(() => {
     </el-card>
 
     <!-- 新建采购单 -->
-    <el-dialog v-model="createVisible" title="发起采购单（按门店加盟商等级计价）" width="640px">
+    <el-dialog v-model="createVisible" title="发起采购单（按门店加盟商等级计价）" width="720px">
       <el-form label-width="80px">
         <el-form-item label="门店">
           <el-select v-model="createForm.storeId" placeholder="选择门店" filterable class="full">
             <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="库存预警">
+          <div class="full">
+            <el-alert
+              v-if="!createForm.storeId"
+              type="info"
+              :closable="false"
+              show-icon
+              title="选择门店后显示该门店库存低预警，可一键带出缺口补货"
+            />
+            <div v-else v-loading="warningLoading" class="warning-block">
+              <template v-if="warnings.length">
+                <div class="warning-head">
+                  <span>共 {{ warnings.length }} 项原料低于预警阈值</span>
+                  <el-button link type="primary" @click="bringAllWarnings">全部带出</el-button>
+                </div>
+                <el-table :data="warnings" size="small" max-height="220" stripe>
+                  <el-table-column prop="materialName" label="原料" min-width="120" show-overflow-tooltip />
+                  <el-table-column label="当前库存" width="90" align="right">
+                    <template #default="{ row }"><span class="mono">{{ row.stockQty }}</span></template>
+                  </el-table-column>
+                  <el-table-column label="预警阈值" width="90" align="right">
+                    <template #default="{ row }"><span class="mono">{{ row.warnThreshold }}</span></template>
+                  </el-table-column>
+                  <el-table-column label="缺口" width="80" align="right">
+                    <template #default="{ row }"><span class="mono warning-gap">{{ row.gap }}</span></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="64">
+                    <template #default="{ row }">
+                      <el-button link type="primary" @click="bringWarning(row)">带出</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </template>
+              <el-alert v-else-if="!warningLoading" type="success" :closable="false" show-icon title="该门店暂无低库存预警" />
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="createForm.remark" maxlength="255" />
@@ -345,5 +438,22 @@ onMounted(() => {
 
 .items-table {
   margin-top: 16px;
+}
+
+.warning-block {
+  min-height: 44px;
+}
+
+.warning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.warning-gap {
+  color: var(--el-color-danger);
+  font-weight: 600;
 }
 </style>
