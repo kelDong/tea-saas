@@ -184,11 +184,23 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         if (!mock && (dto.getSign() == null || dto.getSign().isBlank())) {
             throw new BizException(ErrorCode.CALLBACK_SIGN_FAIL);
         }
-        PayPayment payment = payPaymentMapper.selectOne(new LambdaQueryWrapper<PayPayment>()
-                .eq(PayPayment::getPaymentNo, dto.getPaymentNo()));
+        // 回调无登录态（白名单）：先绕过租户插件按全局唯一单号反查流水，
+        // 再显式注入流水租户——后续即时处理（落表/订单置位/积分发放）全部落在正确租户上下文
+        PayPayment payment = payPaymentMapper.selectByPaymentNoForCallback(dto.getPaymentNo());
         if (payment == null) {
             throw new BizException(ErrorCode.PAYMENT_NOT_FOUND);
         }
+        TenantContext.setTenantId(payment.getTenantId());
+        try {
+            return processCallback(dto, payment);
+        } finally {
+            // 防线程复用串租户（多租户红线；与 TenantCleanupInterceptor 双保险）
+            TenantContext.clear();
+        }
+    }
+
+    /** 回调主体：金额核对 → 落 pay_callback_task → 即时处理（需已注入正确租户上下文） */
+    private String processCallback(PayCallbackDTO dto, PayPayment payment) {
         if (!Objects.equals(payment.getAmount(), dto.getAmount())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "回调金额与流水不符");
         }
@@ -396,7 +408,9 @@ public class PayPaymentServiceImpl implements PayPaymentService {
                 .set(PayCallbackTask::getRetryCount, retryCount)
                 .set(PayCallbackTask::getNextRetryTime, next)
                 .set(PayCallbackTask::getLastError, abbreviate(error))
-                .eq(PayCallbackTask::getId, task.getId());
+                .eq(PayCallbackTask::getId, task.getId())
+                // 状态守卫：仅待处理任务可调度重试，防止并发下覆盖已成功/已失败终态
+                .eq(PayCallbackTask::getStatus, TASK_PENDING);
         if (retryCount >= (task.getMaxRetry() == null ? 5 : task.getMaxRetry())) {
             wrapper.set(PayCallbackTask::getStatus, TASK_FAILED);
         }
