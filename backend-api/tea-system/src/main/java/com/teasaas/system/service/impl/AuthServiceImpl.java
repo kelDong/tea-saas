@@ -6,6 +6,7 @@ import com.teasaas.common.constant.RedisConstants;
 import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.framework.security.context.SecurityUtils;
+import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.system.dto.LoginReq;
 import com.teasaas.system.entity.SysMenu;
 import com.teasaas.system.entity.SysRole;
@@ -73,6 +74,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 3. Sa-Token 登录 + 会话写入租户/角色（多租户主线）
+        // 登录接口在 SaTokenConfig 白名单内，拦截器不会注入租户上下文；
+        // loadRoles 查 sys_user_role（租户隔离锚点表）必须带上本用户 tenant_id，
+        // 否则租户插件按默认超管租户 0 过滤，非平台账号登录后角色为空（回测发现的 bug）
+        TenantContext.setTenantId(user.getTenantId());
         StpUtil.login(user.getId());
         List<SysRole> roles = loadRoles(user.getId());
         List<String> roleCodes = roles.stream().map(SysRole::getRoleCode).toList();

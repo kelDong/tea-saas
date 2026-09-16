@@ -9,7 +9,8 @@ spring:
     name: tea-saas
   datasource:
     # tea-mysql 容器映射宿主 3307（3306 被本机 phpStudy MySQL5.7 占用）
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/${MYSQL_DB:tea_saas}?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
+    # characterEncoding 用 Java 字符集名 UTF-8（mysql-connector-j 9.x 不认 utf8mb4，会 Unsupported characterEncoding 建连失败；UTF-8 会自动协商 utf8mb4）
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/${MYSQL_DB:tea_saas}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver

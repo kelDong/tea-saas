@@ -31,9 +31,14 @@ import java.util.Set;
 @MapperScan(basePackages = "com.teasaas", annotationClass = Mapper.class)
 public class MybatisPlusConfig {
 
-    /** 不参与租户隔离的表（平台表，数据库设计 14.2） */
+    /**
+     * 不参与租户隔离的表（平台表，数据库设计 14.2 / 15.2）
+     * sys_role/sys_role_menu 存平台预置数据（R1-R8 + 默认菜单授权，tenant_id=0 全租户共用），
+     * 租户隔离锚点是 sys_user_role（仍按 tenant_id 过滤）——用户可达的角色只来自本租户绑定行。
+     * 注意：二期若开放租户自定义角色/授权，这两表需重新评估（回测发现 brand 租户登录角色为空的问题）。
+     */
     private static final Set<String> IGNORE_TABLES = Set.of(
-            "tenant", "sys_package", "sys_menu"
+            "tenant", "sys_package", "sys_menu", "sys_role", "sys_role_menu"
     );
 
     @Bean
