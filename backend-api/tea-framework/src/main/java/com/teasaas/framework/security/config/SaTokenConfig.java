@@ -2,6 +2,7 @@ package com.teasaas.framework.security.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
+import com.teasaas.framework.security.context.MemberTokenService;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class SaTokenConfig implements WebMvcConfigurer {
+
+    private final MemberTokenService memberTokenService;
+
+    public SaTokenConfig(MemberTokenService memberTokenService) {
+        this.memberTokenService = memberTokenService;
+    }
 
     /** 登录/回调/文档白名单 */
     private static final String[] WHITELIST = {
@@ -48,6 +55,15 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 }))
                 .addPathPatterns("/**")
                 .excludePathPatterns(WHITELIST);
+
+        // C 端会员会话（Review §2 会话化）：Bearer token → MemberContext + TenantContext；
+        // 排除 wx-login 与门店公开接口（它们仍各自读 X-Tenant-Id 头）
+        registry.addInterceptor(new AppMemberInterceptor(memberTokenService))
+                .addPathPatterns("/api/app/**")
+                .excludePathPatterns(
+                        "/api/app/v1/auth/wx-login",
+                        "/api/app/v1/stores/nearby",
+                        "/api/app/v1/stores/*/products");
 
         // ThreadLocal 清理（防止线程复用串租户——多租户红线）
         registry.addInterceptor(new TenantCleanupInterceptor())

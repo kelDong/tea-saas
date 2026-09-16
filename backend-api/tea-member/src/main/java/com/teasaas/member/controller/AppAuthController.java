@@ -3,6 +3,7 @@ package com.teasaas.member.controller;
 import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.Result;
+import com.teasaas.framework.security.context.MemberTokenService;
 import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.member.dto.WxLoginDTO;
 import com.teasaas.member.service.MemMemberService;
@@ -25,8 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
  * X-Tenant-Id 请求头手动设置 TenantContext，建档仍由租户插件自动拼
  * tenant_id 隔离；请求结束由 TenantCleanupInterceptor 统一清理 ThreadLocal。</p>
  *
- * <p>一期 mock：code 即模拟 openid；返回 memberId 供前端经 X-Member-Id
- * 头携带（开发桥接，正式 C 端会话二期）。</p>
+ * <p>一期 mock：code 即模拟 openid；登录成功签发 C 端会话 token
+ * （Review §2 会话化），前端后续经 Authorization: Bearer 携带；
+ * 兼容期一个迭代内仍可走 X-Member-Id 头（拦截器 WARN 放行）。</p>
  */
 @Validated
 @RestController
@@ -38,6 +40,7 @@ public class AppAuthController {
     private static final String TENANT_HEADER = "X-Tenant-Id";
 
     private final MemMemberService memMemberService;
+    private final MemberTokenService memberTokenService;
 
     @Operation(summary = "微信登录建档（一期 mock：code 即 openid）")
     @PostMapping("/wx-login")
@@ -49,6 +52,9 @@ public class AppAuthController {
             throw new BizException(ErrorCode.PARAM_ERROR, "缺少品牌标识");
         }
         TenantContext.setTenantId(tenantId);
-        return Result.success(memMemberService.wxLogin(dto));
+        WxLoginVO vo = memMemberService.wxLogin(dto);
+        // 事务提交后签发（避免建档回滚却留下指向不存在会员的 token）
+        vo.setToken(memberTokenService.issue(tenantId, vo.getMemberId()));
+        return Result.success(vo);
     }
 }

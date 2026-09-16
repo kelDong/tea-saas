@@ -1,7 +1,9 @@
 # 茶饮 SaaS 系统 · 接口需求文档
 
-> 版本：v1.0 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：待评审
+> 版本：v1.1 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
 > 本文档是**前后端契约**：每个接口对应 PRD 功能编号（F-XXX），标注权限角色、入参出参、MVP 优先级。后端 Controller 与前端 API 层以此为准开发。
+>
+> **v1.1 变更**：C 端接口会话化（Review §2）——wx-login 签发会员 token，`/api/app/v1/**` 除公开接口外统一 `Authorization: Bearer` 鉴权，废弃裸 `X-Member-Id` 头传递（兼容期一个迭代，详见 1.1）。
 
 ---
 
@@ -33,10 +35,16 @@
 |---|---|---|
 | `/api/admin/v1/**` | 平台管理员 | Sa-Token（R1） |
 | `/api/v1/**` | 总部/加盟商/店长/店员 | Sa-Token（R2–R8） |
-| `/api/app/v1/**` | 顾客小程序 | 微信登录（openid 解析租户） |
+| `/api/app/v1/**` | 顾客小程序 | 会员会话 token（v1.1 会话化，见下） |
 | `/api/notify/**` | 微信支付回调 | 验签，无会话 |
 
-- 认证方式：请求头 `Authorization: Bearer <token>`（Sa-Token）
+- B 端认证方式：请求头 `Authorization: Bearer <token>`（Sa-Token）
+- **C 端会话（v1.1，Review §2）**：
+  - 登录：`POST /api/app/v1/auth/wx-login`（入参 `{code}`，公开）返回 `{memberId, token, isNew, nickname, avatar}`，其中 `token` 为会员会话凭证，有效期 7 天（`tea.app.member-token-ttl-days` 可配）
+  - 鉴权：C 端请求统一携带 `Authorization: Bearer <token>`；后端拦截器注入会员/租户上下文，Controller 不再读 `X-Member-Id` 头
+  - 兼容期（一个迭代，到期硬切）：无 token 但携带 `X-Tenant-Id`/`X-Member-Id` 双头仍放行，后端打 WARN 日志督促前端切换
+  - 公开接口（无需会话，仍读 `X-Tenant-Id` 头）：`wx-login`、`GET /api/app/v1/stores/nearby`、`GET /api/app/v1/stores/{id}/products`（含 categories）
+  - 未登录（无 token 且无兼容头）：HTTP 401，`code=2` 未登录或会话过期（对齐 B 端口径）
 - 数据权限：后端按登录用户角色 + 绑定门店自动过滤（见工程规范第 6 章）
 - 版本：一期 v1，破坏性变更升 v2
 

@@ -25,4 +25,7 @@ public final class RedisConstants {
 
     /** 取餐码日序列：teasaas:takecode:{storeId}:{yyyyMMdd} */
     public static final String TAKE_CODE = PREFIX + "takecode:";
+
+    /** C端会员会话 token：teasaas:member:token:{token} → "tenantId:memberId"（Review §2 会话化） */
+    public static final String MEMBER_TOKEN = PREFIX + "member:token:";
 }
