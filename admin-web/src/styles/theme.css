@@ -1,0 +1,192 @@
+/**
+ * Element Plus 2.9 主题覆盖(茶饮暖调)
+ * 规则:优先用 EP 官方 CSS 变量;无变量可用的组件(message-box 圆角)才用选择器
+ * 本文件必须全局加载(非 scoped)——dialog/dropdown/message 是 teleport 节点
+ * 变量语义与色阶推导见 docs/茶饮SaaS-视觉规范.md §3
+ */
+:root {
+  /* ---- 主色:琥珀 ---- */
+  --el-color-primary: var(--ts-primary);
+  --el-color-primary-light-3: #e4a369;
+  --el-color-primary-light-5: #ecbd94;
+  --el-color-primary-light-7: #f4d7bf;
+  --el-color-primary-light-8: #f7e5d4;
+  --el-color-primary-light-9: var(--ts-primary-soft);
+  --el-color-primary-dark-2: var(--ts-primary-deep);
+
+  /* ---- 成功:茶绿 ---- */
+  --el-color-success: var(--ts-success);
+  --el-color-success-light-3: #8ea382;
+  --el-color-success-light-5: #afbea6;
+  --el-color-success-light-7: #cfd8c9;
+  --el-color-success-light-8: #dfe5db;
+  --el-color-success-light-9: var(--ts-success-soft);
+  --el-color-success-dark-2: #4b633d;
+
+  /* ---- 危险/错误:赭红(danger 与 error 双通道) ---- */
+  --el-color-danger: var(--ts-danger);
+  --el-color-danger-light-3: #d4876d;
+  --el-color-danger-light-5: #e1aa97;
+  --el-color-danger-light-7: #edccc1;
+  --el-color-danger-light-8: #f3ddd5;
+  --el-color-danger-light-9: var(--ts-danger-soft);
+  --el-color-danger-dark-2: #9b4326;
+  --el-color-error: var(--ts-danger);
+  --el-color-error-light-3: #d4876d;
+  --el-color-error-light-5: #e1aa97;
+  --el-color-error-light-7: #edccc1;
+  --el-color-error-light-8: #f3ddd5;
+  --el-color-error-light-9: var(--ts-danger-soft);
+  --el-color-error-dark-2: #9b4326;
+
+  /* ---- 警告:金黄(提案色,原型未定义,待 Owner 确认) ---- */
+  --el-color-warning: var(--ts-warning);
+  --el-color-warning-light-3: #d9b76d;
+  --el-color-warning-light-5: #e4cc97;
+  --el-color-warning-light-7: #efe0c1;
+  --el-color-warning-light-8: #f4ead5;
+  --el-color-warning-light-9: var(--ts-warning-soft);
+  --el-color-warning-dark-2: #a17a26;
+
+  /* ---- 信息:暖灰(映射次级墨) ---- */
+  --el-color-info: var(--ts-ink-2);
+  --el-color-info-light-3: #ada294;
+  --el-color-info-light-5: #c5bdb3;
+  --el-color-info-light-7: #dcd7d1;
+  --el-color-info-light-8: #e8e4e0;
+  --el-color-info-light-9: #f3f2f0;
+  --el-color-info-dark-2: #6e6252;
+
+  /* ---- 文本 ---- */
+  --el-text-color-primary: var(--ts-ink);
+  --el-text-color-regular: var(--ts-ink);
+  --el-text-color-secondary: var(--ts-ink-2);
+  --el-text-color-placeholder: var(--ts-ink-3);
+  --el-text-color-disabled: #c4b8a5;
+
+  /* ---- 边框 ---- */
+  --el-border-color: var(--ts-border);
+  --el-border-color-light: #f2eadb;
+  --el-border-color-lighter: var(--ts-border-soft);
+  --el-border-color-extra-light: #f8f3e8;
+  --el-border-color-dark: #e3d6c0;
+  --el-border-color-darker: #d5c4a8;
+
+  /* ---- 填充 ---- */
+  --el-fill-color: var(--ts-gray-tag);
+  --el-fill-color-light: #f5f0e4;
+  --el-fill-color-lighter: var(--ts-stripe); /* 斑马纹/选项 hover 共用 */
+  --el-fill-color-extra-light: #fdfbf4;
+  --el-fill-color-dark: #eae2d0;
+  --el-fill-color-darker: #e3d9c4;
+  --el-fill-color-blank: var(--ts-paper);
+
+  /* ---- 背景 ---- */
+  --el-bg-color: var(--ts-paper);
+  --el-bg-color-page: var(--ts-canvas);
+  --el-bg-color-overlay: var(--ts-paper);
+  --el-disabled-bg-color: #f7f2e6;
+  --el-disabled-text-color: #c4b8a5;
+  --el-disabled-border-color: #eae0cc;
+
+  /* ---- 形状/字体/遮罩 ---- */
+  --el-border-radius-base: var(--ts-radius-btn);
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 999px;
+  --el-font-family: var(--ts-font);
+  --el-mask-color: var(--ts-mask);
+  --el-overlay-color-lighter: var(--ts-mask);
+}
+
+/* ============ 组件作用域变量 ============
+ * 陷阱:EP 把 --el-table-* / --el-card-* / --el-input-* / --el-dialog-* /
+ * --el-pagination-* 定义在组件选择器上(而非 :root),:root 覆盖无效,
+ * 必须用同级选择器覆盖(本文件在 EP css 之后加载,同 specificity 后者胜) */
+.el-table,
+.el-table-v2 {
+  --el-table-header-bg-color: var(--ts-table-header);
+  --el-table-header-text-color: var(--ts-ink-2);
+  --el-table-row-hover-bg-color: var(--ts-fill-hover);
+  --el-table-tr-bg-color: var(--ts-paper);
+  --el-table-bg-color: var(--ts-paper);
+  --el-table-border-color: var(--ts-border);
+  --el-table-border: 1px solid var(--ts-border);
+}
+
+.el-card {
+  --el-card-border-radius: var(--ts-radius-panel);
+  --el-card-border-color: var(--ts-border);
+  --el-card-bg-color: var(--ts-paper);
+  --el-card-padding: 18px;
+}
+
+.el-input,
+.el-textarea,
+.el-date-editor,
+.el-autocomplete {
+  --el-input-hover-border-color: #d9b98c;
+  --el-input-focus-border-color: var(--ts-primary);
+}
+
+.el-dialog {
+  --el-dialog-border-radius: var(--ts-radius-dialog);
+}
+
+.el-pagination {
+  --el-pagination-hover-color: var(--ts-primary-deep);
+  --el-pagination-button-bg-color: transparent;
+}
+
+/* ============ 无变量可用的选择器补丁 ============ */
+
+/* 表头字重(2.9 无字重变量) */
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* 标签胶囊化:去边框 + soft 底 + deep 字(默认灰在前,语义变体按序覆盖) */
+.el-tag {
+  border: none;
+  border-radius: var(--ts-radius-pill);
+  font-weight: 600;
+  background: var(--ts-gray-tag);
+  color: var(--ts-ink-2);
+}
+.el-tag--primary {
+  background: var(--ts-primary-soft);
+  color: var(--ts-primary-deep);
+}
+.el-tag--success {
+  background: var(--ts-success-soft);
+  color: var(--ts-success);
+}
+.el-tag--danger {
+  background: var(--ts-danger-soft);
+  color: var(--ts-danger);
+}
+.el-tag--warning {
+  background: var(--ts-warning-soft);
+  color: var(--ts-warning);
+}
+.el-tag--info {
+  background: var(--ts-gray-tag);
+  color: var(--ts-ink-2);
+}
+
+/* message-box 圆角(2.9 无变量) */
+.el-message-box {
+  border-radius: var(--ts-radius-dialog);
+}
+
+/* 弹窗标题对齐原型(16px/700) */
+.el-dialog__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ts-ink);
+}
+
+/* 键盘可达性:focus 轮廓用品牌色(质量底线) */
+:focus-visible {
+  outline: 2px solid var(--ts-primary);
+  outline-offset: 1px;
+}

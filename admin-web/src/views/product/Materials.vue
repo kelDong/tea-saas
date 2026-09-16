@@ -102,7 +102,7 @@ onMounted(load)
 <template>
   <div class="materials-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -112,21 +112,30 @@ onMounted(load)
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" v-permission="'bom:add'" @click="openCreate">新增原料</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="materialCode" label="编码" min-width="120" />
+        <el-table-column label="编码" min-width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.materialCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="materialName" label="名称" min-width="140" />
         <el-table-column label="分类" width="100">
           <template #default="{ row }">{{ row.category || '—' }}</template>
         </el-table-column>
         <el-table-column prop="unit" label="单位" width="70" />
         <el-table-column label="参考成本" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.costPrice) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.costPrice) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="预警阈值" width="100" align="right">
-          <template #default="{ row }">{{ row.warnThreshold ?? '—' }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ row.warnThreshold ?? '—' }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="{ row }">
@@ -159,6 +168,8 @@ onMounted(load)
         @size-change="search"
       />
     </el-card>
+
+    <div class="page-note">对应 PRD：F-BOM-01｜预警阈值用于门店库存预警（F-INV-03）</div>
 
     <el-dialog
       v-model="dialogVisible"
@@ -193,24 +204,3 @@ onMounted(load)
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-</style>

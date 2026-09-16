@@ -65,8 +65,14 @@ async function handleLogin() {
 
 <template>
   <div class="login-page">
-    <el-card class="login-card">
-      <h2 class="login-title">茶饮 SaaS 管理后台</h2>
+    <div class="login-panel">
+      <div class="login-brand">
+        <div class="brand-logo">🍵</div>
+        <div>
+          <div class="brand-name">茶饮 SaaS 管理后台</div>
+          <div class="brand-sub">连锁加盟 · 一站式经营</div>
+        </div>
+      </div>
       <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="handleLogin">
         <el-form-item prop="username">
           <el-input v-model="form.username" placeholder="用户名" autocomplete="username" />
@@ -99,28 +105,60 @@ async function handleLogin() {
           </el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+      <div class="login-foot">茶饮 SaaS · 山茶制造</div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* 深茶棕渐变画布 + 琥珀微光 */
 .login-page {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: linear-gradient(135deg, #1f3b73 0%, #0f1e3d 100%);
+  background:
+    radial-gradient(600px 320px at 70% 18%, rgba(217, 123, 41, 0.18), transparent 70%),
+    linear-gradient(135deg, #3a2b1e 0%, #2e251b 100%);
 }
 
-.login-card {
+.login-panel {
   width: 400px;
-  border-radius: 8px;
+  padding: 32px 32px 24px;
+  background: var(--ts-paper);
+  border-radius: var(--ts-radius-dialog);
+  box-shadow: 0 16px 48px rgba(42, 32, 22, 0.35);
 }
 
-.login-title {
-  margin: 8px 0 24px;
-  text-align: center;
-  color: #303133;
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--ts-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ts-ink);
+  line-height: 1.3;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--ts-ink-2);
 }
 
 .login-captcha {
@@ -133,10 +171,17 @@ async function handleLogin() {
   height: 40px;
   width: 120px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .login-submit {
   width: 100%;
+}
+
+.login-foot {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ts-ink-3);
 }
 </style>

@@ -1,0 +1,60 @@
+/**
+ * 茶饮SaaS 设计令牌(design tokens)
+ * 唯一事实源:docs/茶饮SaaS-视觉规范.md §2
+ * 命名空间 --ts-(tea-saas);禁止在页面里写裸 hex,一律引用 token
+ * 来源:prototype/admin-panel.html 的暖茶调视觉语言
+ */
+:root {
+  /* ---- 画布与面板 ---- */
+  --ts-canvas: #faf6ee; /* 页面底色(奶油) */
+  --ts-paper: #ffffff; /* 卡片/面板底色 */
+
+  /* ---- 文本 ---- */
+  --ts-ink: #3a2b1e; /* 主文本(浓茶墨) */
+  --ts-ink-2: #8a7a66; /* 次级文本 */
+  --ts-ink-3: #b7a992; /* 占位/弱化 */
+
+  /* ---- 品牌琥珀 ---- */
+  --ts-primary: #d97b29;
+  --ts-primary-deep: #b85f1c; /* hover/强调 */
+  --ts-primary-soft: #f8eddd; /* 浅底 */
+  --ts-primary-bright: #f5b573; /* 深底上的琥珀亮色(侧栏激活文字) */
+
+  /* ---- 语义色 ---- */
+  --ts-success: #5e7c4c; /* 茶绿 */
+  --ts-success-soft: #e9f0e3;
+  --ts-danger: #c2542f; /* 赭红 */
+  --ts-danger-soft: #f8e8e1;
+  --ts-warning: #c9982f; /* 金黄(提案色,原型未定义) */
+  --ts-warning-soft: #f8edd8;
+
+  /* ---- 边框与填充 ---- */
+  --ts-border: #efe6d6;
+  --ts-border-soft: #f5efe2;
+  --ts-gray-tag: #f0ebdf; /* 灰标签底 */
+  --ts-fill-hover: #fdfaf3; /* 表格行 hover */
+  --ts-table-header: #fbf7ee; /* 表头暖底 */
+  --ts-stripe: #fcf9f1; /* 斑马纹 */
+
+  /* ---- 侧栏(深茶棕) ---- */
+  --ts-side-bg: #2e251b;
+  --ts-side-text: #d9ccb4;
+  --ts-side-text-dim: #9a8b74;
+  --ts-side-hover: rgba(255, 255, 255, 0.05);
+  --ts-side-active-bg: rgba(217, 123, 41, 0.16);
+  --ts-side-border: rgba(255, 255, 255, 0.08);
+
+  /* ---- 形状 ---- */
+  --ts-radius-panel: 14px; /* 卡片/面板 */
+  --ts-radius-btn: 8px; /* 按钮/输入框 */
+  --ts-radius-dialog: 16px; /* 弹窗 */
+  --ts-radius-pill: 99px; /* 胶囊标签 */
+
+  /* ---- 字体 ---- */
+  --ts-font:
+    'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  --ts-mono: ui-monospace, SFMono-Regular, Consolas, 'Courier New', monospace;
+
+  /* ---- 遮罩 ---- */
+  --ts-mask: rgba(42, 32, 22, 0.45);
+}

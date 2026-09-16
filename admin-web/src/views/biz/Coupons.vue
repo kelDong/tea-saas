@@ -178,12 +178,13 @@ onMounted(load)
 <template>
   <div class="coupons-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select v-model="query.status" placeholder="全部状态" clearable class="toolbar-select" @change="search">
           <el-option :value="1" label="启用" />
           <el-option :value="2" label="停用" />
         </el-select>
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openCreate">新建券模板</el-button>
       </div>
 
@@ -200,9 +201,15 @@ onMounted(load)
           <template #default="{ row }">{{ benefit(row) }}</template>
         </el-table-column>
         <el-table-column label="发放总量" width="100" align="right">
-          <template #default="{ row }">{{ row.totalQty === -1 ? '不限' : row.totalQty }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ row.totalQty === -1 ? '不限' : row.totalQty }}</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="perLimit" label="限领" width="70" align="right" />
+        <el-table-column label="限领" width="70" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.perLimit }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="有效期" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">{{ validText(row) }}</template>
         </el-table-column>
@@ -237,6 +244,8 @@ onMounted(load)
         @size-change="search"
       />
     </el-card>
+
+    <div class="page-note">对应 PRD：F-MKT-01｜停用模板不影响已领出的券；取消/退款不退券（PRD 决策）</div>
 
     <!-- 新建/编辑券模板 -->
     <el-dialog
@@ -309,30 +318,3 @@ onMounted(load)
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 140px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
-.tip {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-</style>

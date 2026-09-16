@@ -24,6 +24,9 @@ const breadcrumbs = computed(() =>
     .map((item) => ({ title: item.meta.title as string })),
 )
 
+/** 头像占位字：昵称首字（无昵称时用"客"） */
+const avatarText = computed(() => auth.nickname?.trim()?.charAt(0) || '客')
+
 async function handleLogout() {
   await auth.logout()
   ElMessage.success('已退出登录')
@@ -33,31 +36,31 @@ async function handleLogout() {
 
 <template>
   <el-container class="admin-layout">
-    <el-aside width="220px" class="admin-aside">
-      <div class="admin-logo">茶饮 SaaS</div>
-      <el-menu
-        class="admin-menu"
-        :default-active="activeMenu"
-        router
-        background-color="#001529"
-        text-color="rgba(255, 255, 255, 0.65)"
-        active-text-color="#ffffff"
-      >
+    <el-aside width="230px" class="admin-aside">
+      <div class="admin-brand">
+        <div class="brand-logo">🍵</div>
+        <div class="brand-text">
+          <div class="brand-name">茶饮 SaaS</div>
+          <div class="brand-sub">连锁管理平台</div>
+        </div>
+      </div>
+      <el-menu class="admin-menu" :default-active="activeMenu" router>
         <SideMenuItem v-for="menu in navMenus" :key="menu.id" :menu="menu" />
       </el-menu>
     </el-aside>
 
     <el-container>
-      <el-header class="admin-header">
-        <el-breadcrumb separator="/">
+      <el-header class="admin-header" height="58px">
+        <el-breadcrumb separator="/" class="admin-crumb">
           <el-breadcrumb-item v-for="(crumb, index) in breadcrumbs" :key="index">
             {{ crumb.title }}
           </el-breadcrumb-item>
         </el-breadcrumb>
         <el-dropdown>
           <span class="admin-user">
-            {{ auth.nickname || '未命名用户' }}
-            <el-icon><arrow-down /></el-icon>
+            <span class="user-avatar">{{ avatarText }}</span>
+            <span class="user-name">{{ auth.nickname || '未命名用户' }}</span>
+            <el-icon class="user-arrow"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -68,7 +71,11 @@ async function handleLogout() {
       </el-header>
 
       <el-main class="admin-main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -79,47 +86,155 @@ async function handleLogout() {
   height: 100%;
 }
 
+/* ---- 侧栏:深茶棕底,品牌块对齐顶栏高度 ---- */
 .admin-aside {
   display: flex;
   flex-direction: column;
-  background-color: #001529;
+  background-color: var(--ts-side-bg);
+  border-right: 1px solid var(--ts-side-border);
 }
 
-.admin-logo {
-  height: 56px;
-  line-height: 56px;
-  color: #ffffff;
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 58px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ts-side-border);
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--ts-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
-  font-weight: 600;
-  text-align: center;
-  letter-spacing: 2px;
 }
 
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-size: 10px;
+  color: var(--ts-side-text-dim);
+}
+
+/* ---- 菜单:分组标签(一级目录) + 导航项(琥珀激活轨) ---- */
 .admin-menu {
   flex: 1;
   border-right: none;
   overflow-y: auto;
+  padding-bottom: 20px;
+  /* el-menu 主题变量(内联颜色 props 已删除,CSS 才能生效) */
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--ts-side-text);
+  --el-menu-active-color: var(--ts-primary-bright);
+  --el-menu-hover-bg-color: transparent;
+  --el-menu-item-height: 44px;
+  --el-menu-sub-item-height: 44px;
+  --el-menu-item-font-size: 13.5px;
 }
 
+.admin-menu::-webkit-scrollbar {
+  width: 4px;
+}
+.admin-menu::-webkit-scrollbar-thumb {
+  background: #4a3d2e;
+  border-radius: 4px;
+}
+
+/* 一级目录做成分组标签样式(小号/字距/暗金) */
+.admin-menu :deep(.el-sub-menu__title) {
+  height: 36px;
+  padding-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ts-side-text-dim);
+}
+.admin-menu :deep(.el-sub-menu__title:hover) {
+  background: var(--ts-side-hover);
+}
+.admin-menu :deep(.el-sub-menu__title .el-sub-menu__icon-arrow) {
+  font-size: 11px;
+  color: var(--ts-side-text-dim);
+}
+
+/* 导航项:透明左轨,激活时琥珀点亮(inset 不占布局) */
+.admin-menu :deep(.el-menu-item) {
+  border-left: 3px solid transparent;
+  color: var(--ts-side-text);
+  transition:
+    background-color 0.12s,
+    color 0.12s;
+}
+.admin-menu :deep(.el-menu-item:hover) {
+  background: var(--ts-side-hover);
+}
+.admin-menu :deep(.el-menu-item.is-active) {
+  background: var(--ts-side-active-bg);
+  border-left-color: var(--ts-primary);
+  color: var(--ts-primary-bright);
+  font-weight: 600;
+}
+
+/* ---- 顶栏:纸白 + 暖边线,末级面包屑即页标题 ---- */
 .admin-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e8e8e8;
+  background-color: var(--ts-paper);
+  border-bottom: 1px solid var(--ts-border);
+}
+
+.admin-crumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ts-ink);
 }
 
 .admin-user {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   cursor: pointer;
-  color: #303133;
+  color: var(--ts-ink);
   outline: none;
 }
 
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--ts-primary-soft);
+  color: var(--ts-primary-deep);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name {
+  font-size: 13px;
+}
+
+.user-arrow {
+  font-size: 12px;
+  color: var(--ts-ink-2);
+}
+
+/* ---- 主区:奶油画布 + 原型边距 ---- */
 .admin-main {
-  background-color: #f5f7fa;
+  background-color: var(--ts-canvas);
+  padding: 20px 22px 40px;
   overflow-y: auto;
 }
 </style>
