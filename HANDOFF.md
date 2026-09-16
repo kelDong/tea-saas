@@ -1,11 +1,16 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M6（视觉规范主题层落地）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M7（增量功能批次：采购联动/工作台/R2 权限/MinIO 图传）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+cd5b050 feat(system): MinIO图片上传+商品表单图传 F-PRD-01
+95c5cb2 fix(supply+system): R2采购链路权限对齐PRD——种子收敛R3∪R4∪R5、服务层R2蕴含R4 F-SUP-03 F-SUP-04
+46a1140 feat(admin-web): 工作台升级——待办/门店排行/库存预警面板+退款列表接线 F-RPT-02 F-PAY-02
+5daceae feat(admin-web): 采购发起弹窗联动库存低预警——选店带出缺口一键补货 F-SUP-03
+7786426 docs(handoff): 进度快照更新至M6——视觉规范主题层落地（token/EP主题/布局壳/三范例页+19页收敛指引）
 b881113 feat(admin-web): 视觉规范主题层——原型暖茶调对齐token/EP主题/布局壳/三范例页
 5df7911 feat(framework+member): Review批次R3——C端接口会话化：wx-login签发会员token，/api/app统一Bearer鉴权 F-MEM-01
 ccbfc40 fix(inventory+member): Review批次R2——库存/积分流水幂等唯一键DB兜底+积分抵扣悲观锁 F-INV-02 F-MEM-02
@@ -186,6 +191,31 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - **待 Owner 拍板**：warning 金黄 `#C9982F` 为提案色（原型未定义），满减券类型标签在用，备选 `#A98E3B` 橄榄金
 - 已浏览器实测：登录/工作台/原料/优惠券四页 computed-style 级验证（表头暖底/斑马纹/胶囊标签/弹窗 16px 圆角/主按钮琥珀/侧栏激活轨全部生效）；`npm run build` 通过
 
+## 2.10 M7 —— ✅ 增量功能批次（2026-09-16，M6 后 4 commits）
+
+| commit | 内容 | 接口 | 飞书 |
+|---|---|---|---|
+| 5daceae | 采购发起弹窗联动库存低预警：选店带出缺口材料一键补齐数量（Purchases.vue） | F-SUP-03 | — |
+| 46a1140 | 工作台升级：待办事项/门店排行/库存预警面板 + 退款列表接线（Workspace.vue + api/types） | F-RPT-02 F-PAY-02 | — |
+| 95c5cb2 | R2 采购链路权限对齐 PRD（B 端浏览器验证：R6 发起→R2 确认/发货→R6 收货入库全链路 ✓） | F-SUP-03 F-SUP-04 | 无匹配未同步 |
+| cd5b050 | MinIO 图片上传 + 商品表单图传（E2E：上传→保存→DB→缩略图→回显 ✓） | F-PRD-01 | 无匹配未同步 |
+
+**R2 权限修复要点**（95c5cb2）：
+- 种子 `02_data.sql`：R2 授权收敛为 R3∪R4∪R5（38 行，页 200-699 + 产品页按钮 3021-3043 + 供应链 4032/4033/4035/4041/4042）；R3 修正为含按钮（12 行）；R6 补 4035（purchase:cancel，PRD 5.3 未确认前可取消）
+- 服务层 `isHqSupply() = hasRole(R4) || hasRole(R2)` 贯穿 page/checkStoreAccess/confirm/ship/cancel（R2 品牌管理员蕴含总部供应链职能）
+- 运行库已同步种子（R2=38/R3=12 行，零越权泄漏）；死代码 requireRole 已删
+
+**MinIO 图片上传要点**（cd5b050）：
+- `POST /api/v1/files/upload`（multipart，SaInterceptor 登录态）：扩展名白名单 jpg/jpeg/png/webp/gif + contentType `image/` 前缀双校验 + ≤5MB（`tea.oss.max-size`）
+- 新文件：tea-system `oss/`（OssProperties/MinioConfig/OssService）+ `FileController`；ErrorCode 通用区新增 4/5/6；根 pom 管理 minio 8.5.17
+- objectKey=`{tenantId}/{yyyyMM}/{uuid32}.{ext}`（会话租户隔离、无原始文件名防中文坑）；返回永久公开 URL 存 `prd_product.image`（复用既有字段，零 schema 变更）
+- 桶 `tea-saas` 公共读（anonymous download，小程序 `<img>` 直连）；启动 `afterPropertiesSet` 幂等建桶+设策略
+- **本地环境**：复用本机自有 `minio` 容器（9000 API/9001 控制台，minioadmin/minioadmin，bind mount `C:\Users\lenovo\minio\data`）；部署用 `OSS_ENDPOINT/OSS_ACCESS_KEY/OSS_SECRET_KEY/OSS_BUCKET` env 覆盖
+- Products.vue：图片 URL 输入升级为上传卡片（el-upload `:http-request`）+ URL 粘贴兜底，`form.image` 唯一事实源；表格加缩略图列；request.ts 增 `http.upload`（FormData 不手动设 Content-Type，60s 超时）
+- multipart 陷阱：Spring 默认 1MB 会先拦掉请求（yml 已放 max-file-size 10MB / max-request-size 12MB）
+- **bean 循环依赖陷阱**：`MinioConfig.afterPropertiesSet` 内调自身 `minioClient()` @Bean 方法 → 启动即环；改用一次性本地客户端做桶自愈
+- 原料（bom_material）按设计无图片字段，本期不涉及
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -194,7 +224,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 4. **实体 id**：`IdType.ASSIGN_ID`；平台表与关联/流水表不继承 BaseEntity（字段与表严格对齐）；生成器按 DDL 自动路由模块/判断继承
 5. **飞书同步**：`E:\DeepSeekHarness\tools\feishu-task.ps1`（create/complete/list，PS5.1 兼容）；本地映射 `tools/feishu-tasks.json`；凭据 `tools/feishu.config.json`（**禁止提交**）
 6. **pre-commit hook**：`tea-saas/.git/hooks/pre-commit`（克隆需重装；内容可从 `.harness/skills/code-review-commit/SKILL.md` 恢复）
-7. **MySQL/Redis 均已就绪（Docker）**：`tea-mysql`（8.4.11，宿主 **3307**）+ `tea-redis`（宿主 **6379** 无密码）；`tea_saas` **40 表**（批次 4 新增 mem_member_config + pay_refund.payment_id 放开 NULL）+种子已初始化；application.yml 本地默认直连，后端免环境变量启动。3306 是 phpStudy 的 MySQL 5.7（跑不了 02_data.sql 窗口函数，禁止用于本项目）
+7. **MySQL/Redis/MinIO 均已就绪（Docker）**：`tea-mysql`（8.4.11，宿主 **3307**）+ `tea-redis`（宿主 **6379** 无密码）+ MinIO（本机自有 `minio` 容器，宿主 **9000** API / **9001** 控制台，minioadmin/minioadmin，数据 bind mount `C:\Users\lenovo\minio\data`，桶 tea-saas 由后端启动自建）；`tea_saas` **40 表**（批次 4 新增 mem_member_config + pay_refund.payment_id 放开 NULL）+种子已初始化；application.yml 本地默认直连，后端免环境变量启动。3306 是 phpStudy 的 MySQL 5.7（跑不了 02_data.sql 窗口函数，禁止用于本项目）
 8. **前端 npm 陷阱**：`npm install --prefix` 会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11 / npmmirror
 9. **代码生成器**：`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=prd_*,inv_*`（先 `mvn -pl tea-generator -am package -DskipTests` 或复用已编译 classes；跳过已存在文件）
 
@@ -202,7 +232,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 1. **admin-web 剩余 ~19 页视觉收敛**（M6 后续，量小）：照范例页（Materials=表格页/Coupons=表格+弹窗/Workspace=仪表盘）批量套模式类，清单见视觉规范 §7；改 EP 样式前必读 §3.2 陷阱记录（尤其陷阱 1/4）
 2. **端到端冒烟**（推荐先做）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，用种子账号走一遍：R2 登录 → BOM 建配方 → 商品发布 → 门店上架 → store/Pos 收银下单收款 → 报表/日结查看数字回流
-3. 二期 backlog（按优先级）：管理端订单取消/退款 endpoint（按钮权限已种）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、C 端会话化（token 替换 X-Member-Id）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签
+3. 二期 backlog（按优先级）：管理端订单取消/退款操作 endpoint（退款**列表**已接，46a1140）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 4. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
