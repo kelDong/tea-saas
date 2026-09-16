@@ -3,12 +3,12 @@ import { defineStore } from 'pinia'
 
 import { authApi } from '@/api/auth'
 import type { MenuNode } from '@/types/api'
-import { clearToken, getToken, setToken } from '@/utils/token'
+import { clearToken, getNickname, getToken, setToken } from '@/utils/token'
 
 /** 认证/权限状态：token + 用户信息 + 菜单树 + 按钮权限码 */
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(getToken())
-  const nickname = ref('')
+  const nickname = ref(getNickname())
   const roles = ref<string[]>([])
   const menus = ref<MenuNode[]>([])
   const permissions = ref<string[]>([])
@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(data: { username: string; password: string; captchaKey?: string; captchaCode?: string }) {
     const vo = await authApi.login(data)
-    setToken(vo.token, vo.tokenName)
+    setToken(vo.token, vo.tokenName, vo.nickname)
     token.value = vo.token
     nickname.value = vo.nickname
     roles.value = vo.roles ?? []
