@@ -113,10 +113,10 @@ WHERE m.`id` BETWEEN 300 AND 399
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 12000, 0, 3, m.id FROM `sys_menu` m
 WHERE m.`id` BETWEEN 300 AND 399 OR m.`id` BETWEEN 3021 AND 3033;
--- R4 供应链：供应链目录 + 处理按钮（不含 purchase:submit）
+-- R4 供应链：供应链目录 + 处理按钮（不含 purchase:submit；库存台账 PRD 5.2 仅👁只读，不给 inv 按钮 4041/4042）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 13000, 0, 4, m.id FROM `sys_menu` m
-WHERE m.`id` BETWEEN 400 AND 499 AND (m.`menu_type` < 3 OR m.`id` = 4035 OR m.`id` BETWEEN 4032 AND 4033 OR m.`id` BETWEEN 4041 AND 4042);
+WHERE m.`id` BETWEEN 400 AND 499 AND (m.`menu_type` < 3 OR m.`id` = 4035 OR m.`id` BETWEEN 4032 AND 4033);
 -- R5 运营：经营/加盟/系统菜单（无按钮）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 14000, 0, 5, m.id FROM `sys_menu` m
