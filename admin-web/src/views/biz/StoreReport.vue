@@ -72,7 +72,7 @@ onMounted(async () => {
     <!-- 经营趋势 -->
     <el-card shadow="never">
       <template #header>经营趋势（口径：支付时间，退款/取消订单不计）</template>
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select
           v-model="trendQuery.storeId"
           placeholder="全部门店（品牌汇总）"
@@ -90,9 +90,13 @@ onMounted(async () => {
 
       <el-table v-loading="trendLoading" :data="trend" stripe>
         <el-table-column prop="period" label="时段" min-width="130" />
-        <el-table-column prop="orderCount" label="订单数" width="120" align="right" />
+        <el-table-column label="订单数" width="120" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.orderCount }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="销售额" width="140" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.salesAmount) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.salesAmount) }}</span></template>
         </el-table-column>
       </el-table>
     </el-card>
@@ -100,7 +104,7 @@ onMounted(async () => {
     <!-- 门店日结 -->
     <el-card shadow="never" class="settle-card">
       <template #header>门店日结对账（已支付未退款口径）</template>
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select
           v-model="settleQuery.storeId"
           placeholder="选择门店"
@@ -127,18 +131,14 @@ onMounted(async () => {
         <el-descriptions-item label="储值实收">{{ settle ? fen2yuan(settle.walletAmount) : '—' }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <div class="page-note">对应 PRD：F-RPT-01</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
+/* 门店下拉占位文案长（全部门店（品牌汇总）），全局 140px 放不下 */
+.page-toolbar .toolbar-select {
   width: 220px;
 }
 

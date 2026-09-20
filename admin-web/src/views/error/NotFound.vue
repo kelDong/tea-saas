@@ -20,6 +20,6 @@ const router = useRouter()
   align-items: center;
   justify-content: center;
   height: 100%;
-  background-color: #ffffff;
+  background-color: var(--ts-paper);
 }
 </style>

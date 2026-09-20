@@ -143,7 +143,7 @@ onMounted(() => {
     <el-tabs>
       <el-tab-pane label="用户">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-input
               v-model="query.keyword"
               placeholder="用户名/昵称"
@@ -153,6 +153,7 @@ onMounted(() => {
               @clear="search"
             />
             <el-button type="primary" @click="search">查询</el-button>
+            <span class="toolbar-spacer" />
             <el-button type="success" @click="openCreate">新增用户</el-button>
           </div>
 
@@ -214,7 +215,11 @@ onMounted(() => {
             class="mb"
           />
           <el-table :data="roles" stripe>
-            <el-table-column prop="roleCode" label="角色编码" width="100" />
+            <el-table-column label="角色编码" width="100">
+              <template #default="{ row }">
+                <span class="mono">{{ row.roleCode }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="roleName" label="角色名称" min-width="140" />
             <el-table-column label="数据范围" width="120">
               <template #default="{ row }">
@@ -236,14 +241,16 @@ onMounted(() => {
       </el-tab-pane>
     </el-tabs>
 
+    <div class="page-note">对应 PRD：F-SYS-02/F-SYS-03</div>
+
     <!-- 新增/编辑用户 -->
     <el-dialog
       v-model="dialogVisible"
       :title="editing ? `编辑用户：${editing.username}` : '新增用户'"
-      width="520px"
+      width="480px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="createRules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="createRules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" :disabled="!!editing" maxlength="32" />
         </el-form-item>
@@ -274,7 +281,7 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 重置密码 -->
-    <el-dialog v-model="resetVisible" :title="`重置密码：${resetTarget?.username ?? ''}`" width="420px">
+    <el-dialog v-model="resetVisible" :title="`重置密码：${resetTarget?.username ?? ''}`" width="480px">
       <el-input v-model="newPassword" type="password" show-password placeholder="新密码（6-32 位）" maxlength="32" />
       <template #footer>
         <el-button @click="resetVisible = false">取消</el-button>
@@ -285,30 +292,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
 .tag-gap {
   margin-right: 4px;
 }
 
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .mb {
   margin-bottom: 16px;
-}
-
-.full {
-  width: 100%;
 }
 </style>

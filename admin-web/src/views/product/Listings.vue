@@ -160,22 +160,31 @@ onMounted(async () => {
 <template>
   <div class="listings-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select v-model="storeId" placeholder="选择门店" class="toolbar-select" @change="loadListings">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
         </el-select>
+        <span class="toolbar-spacer" />
         <el-button v-permission="'listing:add'" type="success" @click="openAvailable">上架商品</el-button>
         <el-button @click="openCheck">可售校验</el-button>
       </div>
 
       <el-table v-loading="loading" :data="listings" stripe>
-        <el-table-column prop="productCode" label="编码" min-width="110" />
+        <el-table-column label="编码" min-width="110">
+          <template #default="{ row }">
+            <span class="mono">{{ row.productCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="productName" label="商品名" min-width="150" />
         <el-table-column label="本店售价" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.salePrice) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.salePrice) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="总部建议价" width="110" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.suggestPrice) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.suggestPrice) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="上架状态" width="90">
           <template #default="{ row }">
@@ -200,9 +209,11 @@ onMounted(async () => {
       </el-table>
     </el-card>
 
+    <div class="page-note">对应 PRD：F-PRD-02/F-PRD-03</div>
+
     <!-- 可上架商品 -->
     <el-dialog v-model="availableVisible" title="可上架商品（已发布且未在本店上架）" width="720px">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="availableQuery.keyword"
           placeholder="编码/名称"
@@ -213,10 +224,16 @@ onMounted(async () => {
         />
       </div>
       <el-table v-loading="availableLoading" :data="availableRows" stripe max-height="400">
-        <el-table-column prop="productCode" label="编码" min-width="110" />
+        <el-table-column label="编码" min-width="110">
+          <template #default="{ row }">
+            <span class="mono">{{ row.productCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="productName" label="商品名" min-width="150" />
         <el-table-column label="建议售价" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.suggestPrice) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.suggestPrice) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
@@ -228,14 +245,15 @@ onMounted(async () => {
         v-model:current-page="availableQuery.page"
         v-model:page-size="availableQuery.size"
         :total="availableTotal"
-        layout="total, prev, pager, next"
+        layout="total, prev, pager, next, sizes"
+        :page-sizes="[10, 20, 50]"
         class="pager"
         @current-change="loadAvailable"
       />
     </el-dialog>
 
     <!-- 上架定价 -->
-    <el-dialog v-model="listVisible" :title="`上架：${listTarget?.productName ?? ''}`" width="420px">
+    <el-dialog v-model="listVisible" :title="`上架：${listTarget?.productName ?? ''}`" width="480px">
       <el-alert
         v-if="listTarget"
         :title="`总部建议售价 ${fen2yuan(listTarget.suggestPrice)}，本店售价不得高于它`"
@@ -244,6 +262,7 @@ onMounted(async () => {
         class="mb"
       />
       <el-input-number v-model="listPriceYuan" :min="0.01" :step="1" :precision="2" class="full" />
+      <span class="tip">元</span>
       <template #footer>
         <el-button @click="listVisible = false">取消</el-button>
         <el-button type="primary" @click="submitList">确定</el-button>
@@ -251,8 +270,9 @@ onMounted(async () => {
     </el-dialog>
 
     <!-- 调整本店售价 -->
-    <el-dialog v-model="priceVisible" :title="`调整本店售价：${priceTarget?.productName ?? ''}`" width="420px">
+    <el-dialog v-model="priceVisible" :title="`调整本店售价：${priceTarget?.productName ?? ''}`" width="480px">
       <el-input-number v-model="priceYuan" :min="0.01" :step="1" :precision="2" class="full" />
+      <span class="tip">元</span>
       <template #footer>
         <el-button @click="priceVisible = false">取消</el-button>
         <el-button type="primary" @click="submitPrice">确定</el-button>
@@ -269,10 +289,14 @@ onMounted(async () => {
                 <el-table-column prop="materialName" label="缺料原料" min-width="120" />
                 <el-table-column prop="unit" label="单位" width="60" />
                 <el-table-column label="需求量" width="100" align="right">
-                  <template #default="{ row: s }">{{ s.needQty }}</template>
+                  <template #default="{ row: s }">
+                    <span class="mono">{{ s.needQty }}</span>
+                  </template>
                 </el-table-column>
                 <el-table-column label="库存量" width="100" align="right">
-                  <template #default="{ row: s }">{{ s.stockQty }}</template>
+                  <template #default="{ row: s }">
+                    <span class="mono">{{ s.stockQty }}</span>
+                  </template>
                 </el-table-column>
               </el-table>
               <el-empty v-else description="原料充足" :image-size="48" />
@@ -293,29 +317,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 220px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
 .mb {
   margin-bottom: 12px;
 }

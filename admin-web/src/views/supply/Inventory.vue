@@ -145,7 +145,7 @@ onMounted(async () => {
     <el-tabs @tab-change="(name: string | number) => name === 'warning' && loadWarnings()">
       <el-tab-pane label="库存台账">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-select v-model="query.storeId" placeholder="全部门店" clearable filterable class="toolbar-select" @change="search">
               <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
             </el-select>
@@ -153,6 +153,7 @@ onMounted(async () => {
               <el-option v-for="material in materials" :key="material.id" :value="material.id" :label="material.materialName" />
             </el-select>
             <el-button type="primary" @click="search">查询</el-button>
+            <span class="toolbar-spacer" />
             <el-button v-permission="'inv:adjust'" type="success" @click="openAdjust()">盘点修正</el-button>
           </div>
 
@@ -163,8 +164,12 @@ onMounted(async () => {
             <el-table-column label="原料" min-width="140">
               <template #default="{ row }">{{ materialName(row.materialId) }}</template>
             </el-table-column>
-            <el-table-column prop="stockQty" label="库存量" width="110" align="right" />
-            <el-table-column prop="version" label="版本" width="70" />
+            <el-table-column label="库存量" width="110" align="right">
+              <template #default="{ row }"><span class="mono">{{ row.stockQty }}</span></template>
+            </el-table-column>
+            <el-table-column label="版本" width="70">
+              <template #default="{ row }"><span class="mono">{{ row.version }}</span></template>
+            </el-table-column>
             <el-table-column label="更新时间" min-width="160">
               <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
             </el-table-column>
@@ -195,14 +200,20 @@ onMounted(async () => {
             <el-table-column label="门店" min-width="140">
               <template #default="{ row }">{{ storeName(row.storeId) }}</template>
             </el-table-column>
-            <el-table-column prop="materialCode" label="原料编码" width="110" />
+            <el-table-column label="原料编码" width="110">
+              <template #default="{ row }"><span class="mono">{{ row.materialCode }}</span></template>
+            </el-table-column>
             <el-table-column prop="materialName" label="原料" min-width="130" />
             <el-table-column prop="unit" label="单位" width="70" />
-            <el-table-column prop="stockQty" label="库存" width="90" align="right" />
-            <el-table-column prop="warnThreshold" label="阈值" width="90" align="right" />
+            <el-table-column label="库存" width="90" align="right">
+              <template #default="{ row }"><span class="mono">{{ row.stockQty }}</span></template>
+            </el-table-column>
+            <el-table-column label="阈值" width="90" align="right">
+              <template #default="{ row }"><span class="mono">{{ row.warnThreshold }}</span></template>
+            </el-table-column>
             <el-table-column label="缺口" width="90" align="right">
               <template #default="{ row }">
-                <span class="gap">{{ row.gap }}</span>
+                <span class="mono gap">{{ row.gap }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -210,9 +221,11 @@ onMounted(async () => {
       </el-tab-pane>
     </el-tabs>
 
+    <div class="page-note">对应 PRD：F-INV-01/F-INV-02/F-INV-03｜盘点走 version 乐观锁 + 流水留痕；预警联动采购补货（F-SUP-03）</div>
+
     <!-- 盘点修正 -->
-    <el-dialog v-model="adjustVisible" title="盘点修正（实盘覆盖 + 流水留痕）" width="460px">
-      <el-form label-width="90px">
+    <el-dialog v-model="adjustVisible" title="盘点修正（实盘覆盖 + 流水留痕）" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="门店">
           <el-select v-model="adjustForm.storeId" placeholder="选择门店" filterable class="full">
             <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
@@ -252,13 +265,17 @@ onMounted(async () => {
         </el-table-column>
         <el-table-column label="变动" width="90" align="right">
           <template #default="{ row }">
-            <span :class="row.changeQty >= 0 ? 'plus' : 'minus'">{{ row.changeQty >= 0 ? `+${row.changeQty}` : row.changeQty }}</span>
+            <span class="mono" :class="row.changeQty >= 0 ? 'plus' : 'minus'">{{ row.changeQty >= 0 ? `+${row.changeQty}` : row.changeQty }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="beforeQty" label="前" width="80" align="right" />
-        <el-table-column prop="afterQty" label="后" width="80" align="right" />
-        <el-table-column prop="bizNo" label="业务单号" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.bizNo || '—' }}</template>
+        <el-table-column label="前" width="80" align="right">
+          <template #default="{ row }"><span class="mono">{{ row.beforeQty }}</span></template>
+        </el-table-column>
+        <el-table-column label="后" width="80" align="right">
+          <template #default="{ row }"><span class="mono">{{ row.afterQty }}</span></template>
+        </el-table-column>
+        <el-table-column label="业务单号" min-width="170" show-overflow-tooltip>
+          <template #default="{ row }"><span class="mono">{{ row.bizNo || '—' }}</span></template>
         </el-table-column>
       </el-table>
       <el-pagination
@@ -274,25 +291,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 180px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
+/* 预警缺口 / 流水涨跌语义色（复用 mono 等宽排版） */
 .gap {
   color: var(--el-color-danger);
   font-weight: 600;

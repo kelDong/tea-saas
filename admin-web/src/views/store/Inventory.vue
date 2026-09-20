@@ -141,7 +141,7 @@ onMounted(async () => {
 <template>
   <div class="store-inventory">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <span class="label">门店</span>
         <el-select v-model="storeId" placeholder="选择门店" filterable class="toolbar-select">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
@@ -151,7 +151,7 @@ onMounted(async () => {
       <el-empty v-if="!storeId" description="当前租户暂无门店" />
       <el-tabs v-else @tab-change="(name: string | number) => name === 'warning' && loadWarnings()">
         <el-tab-pane label="库存台账">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-select v-model="query.materialId" placeholder="全部原料" clearable filterable class="toolbar-select" @change="search">
               <el-option v-for="material in materials" :key="material.id" :value="material.id" :label="material.materialName" />
             </el-select>
@@ -162,8 +162,16 @@ onMounted(async () => {
             <el-table-column label="原料" min-width="150">
               <template #default="{ row }">{{ materialName(row.materialId) }}</template>
             </el-table-column>
-            <el-table-column prop="stockQty" label="库存量" width="110" align="right" />
-            <el-table-column prop="version" label="版本" width="70" />
+            <el-table-column label="库存量" width="110" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.stockQty }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="版本" width="70">
+              <template #default="{ row }">
+                <span class="mono">{{ row.version }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="更新时间" min-width="160">
               <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
             </el-table-column>
@@ -189,11 +197,23 @@ onMounted(async () => {
 
         <el-tab-pane label="库存预警">
           <el-table v-loading="warningsLoading" :data="warnings" stripe>
-            <el-table-column prop="materialCode" label="原料编码" width="110" />
+            <el-table-column label="原料编码" width="110">
+              <template #default="{ row }">
+                <span class="mono">{{ row.materialCode }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="materialName" label="原料" min-width="130" />
             <el-table-column prop="unit" label="单位" width="70" />
-            <el-table-column prop="stockQty" label="库存" width="90" align="right" />
-            <el-table-column prop="warnThreshold" label="阈值" width="90" align="right" />
+            <el-table-column label="库存" width="90" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.stockQty }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="阈值" width="90" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.warnThreshold }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="缺口" width="90" align="right">
               <template #default="{ row }">
                 <span class="gap">{{ row.gap }}</span>
@@ -205,8 +225,8 @@ onMounted(async () => {
     </el-card>
 
     <!-- 盘点修正 -->
-    <el-dialog v-model="adjustVisible" title="盘点修正（实盘覆盖 + 流水留痕）" width="440px">
-      <el-form label-width="90px">
+    <el-dialog v-model="adjustVisible" title="盘点修正（实盘覆盖 + 流水留痕）" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="门店">
           <el-input :value="stores.find((s) => s.id === storeId)?.storeName" disabled />
         </el-form-item>
@@ -247,10 +267,20 @@ onMounted(async () => {
             <span :class="row.changeQty >= 0 ? 'plus' : 'minus'">{{ row.changeQty >= 0 ? `+${row.changeQty}` : row.changeQty }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="beforeQty" label="前" width="80" align="right" />
-        <el-table-column prop="afterQty" label="后" width="80" align="right" />
-        <el-table-column prop="bizNo" label="业务单号" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.bizNo || '—' }}</template>
+        <el-table-column label="前" width="80" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.beforeQty }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="后" width="80" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.afterQty }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务单号" min-width="170" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono">{{ row.bizNo || '—' }}</span>
+          </template>
         </el-table-column>
       </el-table>
       <el-pagination
@@ -262,45 +292,27 @@ onMounted(async () => {
         @current-change="loadLogs"
       />
     </el-drawer>
+
+    <div class="page-note">对应 PRD：F-INV-02/F-INV-03</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar .label {
+.page-toolbar .label {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.toolbar-select {
-  width: 200px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
+  color: var(--ts-ink-2);
 }
 
 .gap {
-  color: var(--el-color-danger);
+  color: var(--ts-danger);
   font-weight: 600;
 }
 
 .plus {
-  color: var(--el-color-success);
+  color: var(--ts-success);
 }
 
 .minus {
-  color: var(--el-color-danger);
+  color: var(--ts-danger);
 }
 </style>

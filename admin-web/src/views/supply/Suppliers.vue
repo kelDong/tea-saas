@@ -146,7 +146,7 @@ onMounted(load)
 <template>
   <div class="suppliers-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -156,11 +156,16 @@ onMounted(load)
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openCreate">新增供应商</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="supplierCode" label="编码" min-width="110" />
+        <el-table-column label="编码" min-width="110">
+          <template #default="{ row }">
+            <span class="mono">{{ row.supplierCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="supplierName" label="供应商" min-width="150" />
         <el-table-column label="联系人" width="100">
           <template #default="{ row }">{{ row.contactName || '—' }}</template>
@@ -204,6 +209,8 @@ onMounted(load)
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-SUP-01</div>
+
     <!-- 新增/编辑供应商 -->
     <el-dialog
       v-model="dialogVisible"
@@ -211,7 +218,7 @@ onMounted(load)
       width="480px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="编码" prop="supplierCode">
           <el-input v-model="form.supplierCode" :disabled="!!editing" maxlength="32" />
         </el-form-item>
@@ -260,21 +267,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .bind-row {
   display: flex;
   align-items: center;

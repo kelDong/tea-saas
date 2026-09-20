@@ -75,7 +75,7 @@ onMounted(() => {
     <el-tabs @tab-change="onTab">
       <el-tab-pane label="门店排行">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-date-picker v-model="rankDate" type="date" value-format="YYYY-MM-DD" :clearable="false" @change="loadRanks" />
             <el-button type="primary" @click="loadRanks">查询</el-button>
           </div>
@@ -85,16 +85,20 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="storeName" label="门店" min-width="160" />
             <el-table-column label="日实收" width="140" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.salesAmount) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.salesAmount) }}</span></template>
             </el-table-column>
-            <el-table-column prop="orderCount" label="订单数" width="110" align="right" />
+            <el-table-column label="订单数" width="110" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.orderCount }}</span>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
 
       <el-tab-pane label="热销商品">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-select v-model="hotQuery.days" class="toolbar-select" @change="loadHot">
               <el-option :value="7" label="近 7 天" />
               <el-option :value="30" label="近 30 天" />
@@ -106,9 +110,13 @@ onMounted(() => {
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
             <el-table-column prop="productName" label="商品（订单快照名）" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="qty" label="销量(份)" width="110" align="right" />
+            <el-table-column label="销量(份)" width="110" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.qty }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="销售额" width="140" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.salesAmount) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.salesAmount) }}</span></template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -119,9 +127,16 @@ onMounted(() => {
           <el-table v-loading="invLoading" :data="invRows" stripe>
             <el-table-column prop="storeName" label="门店" min-width="140" />
             <el-table-column prop="materialName" label="原料" min-width="140" />
-            <el-table-column prop="stockQty" label="库存量" width="110" align="right" />
+            <el-table-column label="库存量" width="110" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.stockQty }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="预警阈值" width="110" align="right">
-              <template #default="{ row }">{{ row.warnThreshold ?? '未配置' }}</template>
+              <template #default="{ row }">
+                <span v-if="row.warnThreshold != null" class="mono">{{ row.warnThreshold }}</span>
+                <template v-else>未配置</template>
+              </template>
             </el-table-column>
             <el-table-column label="状态" width="90">
               <template #default="{ row }">
@@ -144,23 +159,7 @@ onMounted(() => {
         </el-card>
       </el-tab-pane>
     </el-tabs>
+
+    <div class="page-note">对应 PRD：F-RPT-02</div>
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 140px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-</style>

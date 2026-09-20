@@ -119,7 +119,7 @@ onMounted(async () => {
 <template>
   <div class="tenants-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -129,11 +129,16 @@ onMounted(async () => {
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openCreate">新增品牌</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="tenantCode" label="品牌编码" min-width="120" />
+        <el-table-column label="品牌编码" min-width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.tenantCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="tenantName" label="品牌名称" min-width="150" />
         <el-table-column label="联系人" width="100">
           <template #default="{ row }">{{ row.contactName || '—' }}</template>
@@ -148,7 +153,9 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column label="门店上限" width="90" align="right">
-          <template #default="{ row }">{{ row.storeLimit === 0 ? '不限' : row.storeLimit }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ row.storeLimit === 0 ? '不限' : row.storeLimit }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="{ row }">
@@ -188,14 +195,16 @@ onMounted(async () => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-SYS-01</div>
+
     <!-- 新增/编辑品牌 -->
     <el-dialog
       v-model="dialogVisible"
       :title="editing ? `编辑品牌：${editing.tenantName}` : '新增品牌'"
-      width="520px"
+      width="480px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="品牌编码" prop="tenantCode">
           <el-input v-model="form.tenantCode" :disabled="!!editing" maxlength="32" placeholder="字母/数字/下划线/中划线" />
         </el-form-item>
@@ -235,29 +244,3 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
-.tip {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-</style>

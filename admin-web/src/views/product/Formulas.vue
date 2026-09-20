@@ -163,7 +163,7 @@ onMounted(() => {
 <template>
   <div class="formulas-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -173,15 +173,26 @@ onMounted(() => {
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button v-permission="'bom:add'" type="success" @click="openCreate">新增配方</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="formulaCode" label="编码" min-width="120" />
+        <el-table-column label="编码" min-width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.formulaCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="formulaName" label="名称" min-width="150" />
-        <el-table-column prop="version" label="版本" width="70" />
+        <el-table-column label="版本" width="70" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.version }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="试算成本" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.costTotal) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.costTotal) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
@@ -224,14 +235,16 @@ onMounted(() => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-BOM-02/F-BOM-03</div>
+
     <!-- 新增/编辑配方（明细全量重绑） -->
     <el-dialog
       v-model="dialogVisible"
       :title="editing ? `编辑配方：${editing.formulaName}` : '新增配方'"
-      width="720px"
+      width="560px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="配方编码" prop="formulaCode">
           <el-input v-model="form.formulaCode" :disabled="!!editing" maxlength="32" />
         </el-form-item>
@@ -264,17 +277,26 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 毛利试算 -->
-    <el-dialog v-model="calcVisible" :title="`毛利试算：${calcTarget?.formulaName ?? ''}`" width="440px">
+    <el-dialog v-model="calcVisible" :title="`毛利试算：${calcTarget?.formulaName ?? ''}`" width="480px">
       <el-form label-width="100px">
         <el-form-item label="建议售价(元)">
           <el-input-number v-model="calcPriceYuan" :min="0" :step="1" :precision="2" class="full" />
+          <span class="tip">元</span>
         </el-form-item>
       </el-form>
       <el-descriptions v-if="calcResult" :column="1" border class="calc-result">
-        <el-descriptions-item label="成本合计">{{ fen2yuan(calcResult.costTotal) }}</el-descriptions-item>
-        <el-descriptions-item label="建议售价">{{ fen2yuan(calcResult.suggestPrice) }}</el-descriptions-item>
-        <el-descriptions-item label="毛利">{{ fen2yuan(calcResult.grossProfit) }}</el-descriptions-item>
-        <el-descriptions-item label="毛利率">{{ calcResult.grossMargin }}%</el-descriptions-item>
+        <el-descriptions-item label="成本合计">
+          <span class="mono">{{ fen2yuan(calcResult.costTotal) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="建议售价">
+          <span class="mono">{{ fen2yuan(calcResult.suggestPrice) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="毛利">
+          <span class="mono">{{ fen2yuan(calcResult.grossProfit) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="毛利率">
+          <span class="mono">{{ calcResult.grossMargin }}%</span>
+        </el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="calcVisible = false">关闭</el-button>
@@ -285,25 +307,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
 .item-row {
   display: flex;
   align-items: center;

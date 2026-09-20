@@ -31,12 +31,22 @@ onMounted(load)
       </template>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="packageCode" label="套餐编码" min-width="120" />
+        <el-table-column label="套餐编码" min-width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.packageCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="packageName" label="套餐名称" min-width="150" />
         <el-table-column label="单价(店/月)" width="120" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.pricePerStore) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.pricePerStore) }}</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="storeLimit" label="门店上限" width="100" align="right" />
+        <el-table-column label="门店上限" width="100" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.storeLimit }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="功能开关" min-width="220">
           <template #default="{ row }">
             <code v-if="row.featureJson" class="feature">{{ row.featureJson }}</code>
@@ -52,6 +62,8 @@ onMounted(load)
         </el-table-column>
       </el-table>
     </el-card>
+
+    <div class="page-note">对应 PRD：F-SYS-01</div>
   </div>
 </template>
 

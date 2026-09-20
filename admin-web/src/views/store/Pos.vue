@@ -138,7 +138,7 @@ onMounted(async () => {
   <div class="pos-page">
     <!-- 顶部：门店选择 -->
     <el-card shadow="never" class="top-bar">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <span class="label">门店</span>
         <el-select v-model="storeId" placeholder="选择门店" filterable class="toolbar-select">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
@@ -194,13 +194,13 @@ onMounted(async () => {
     </div>
 
     <!-- 收款确认 -->
-    <el-dialog v-model="payVisible" :title="`收款：${currentOrder?.orderNo ?? ''}`" width="440px" :close-on-click-modal="false">
+    <el-dialog v-model="payVisible" :title="`收款：${currentOrder?.orderNo ?? ''}`" width="480px" :close-on-click-modal="false">
       <el-descriptions :column="2" border class="pay-info">
-        <el-descriptions-item label="订单号" :span="2">{{ currentOrder?.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="订单号" :span="2"><span class="mono">{{ currentOrder?.orderNo }}</span></el-descriptions-item>
         <el-descriptions-item label="取餐码">{{ currentOrder?.takeCode }}</el-descriptions-item>
         <el-descriptions-item label="应收">{{ fen2yuan(currentOrder?.payAmount ?? 0) }}</el-descriptions-item>
       </el-descriptions>
-      <el-form label-width="90px" class="pay-form">
+      <el-form label-width="100px" class="pay-form">
         <el-form-item label="收款渠道">
           <el-radio-group v-model="payChannel">
             <el-radio :value="1">现金</el-radio>
@@ -220,7 +220,7 @@ onMounted(async () => {
     </el-dialog>
 
     <!-- 收款结果 -->
-    <el-dialog v-model="resultVisible" title="收款成功" width="420px">
+    <el-dialog v-model="resultVisible" title="收款成功" width="480px">
       <el-result icon="success" title="收款完成" :sub-title="payResult?.orderNo">
         <template #extra>
           <el-descriptions :column="1" border>
@@ -240,19 +240,13 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+.top-bar .page-toolbar {
+  margin-bottom: 0;
 }
 
-.toolbar .label {
+.page-toolbar .label {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.toolbar-select {
-  width: 220px;
+  color: var(--ts-ink-2);
 }
 
 .pos-body {
@@ -304,7 +298,7 @@ onMounted(async () => {
 
 .goods-price {
   margin-top: 6px;
-  color: var(--el-color-danger);
+  color: var(--ts-danger);
   font-weight: 600;
 }
 
@@ -356,22 +350,12 @@ onMounted(async () => {
 }
 
 .cart-total .amount {
-  color: var(--el-color-danger);
+  color: var(--ts-danger);
   font-size: 20px;
   font-weight: 700;
 }
 
-.full {
-  width: 100%;
-}
-
 .pay-info {
   margin-bottom: 16px;
-}
-
-.pay-form .tip {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 </style>

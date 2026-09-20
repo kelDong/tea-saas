@@ -207,19 +207,22 @@ onMounted(() => {
 <template>
   <div class="purchases-page">
     <el-card shadow="never">
-      <div class="toolbar">
-        <el-select v-model="query.storeId" placeholder="全部门店" clearable class="toolbar-select" @change="search">
+      <div class="page-toolbar">
+        <el-select v-model="query.storeId" placeholder="全部门店" clearable filterable class="toolbar-select" @change="search">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
         </el-select>
         <el-select v-model="query.status" placeholder="全部状态" clearable class="toolbar-select" @change="search">
           <el-option v-for="item in STATUS_LIST" :key="item.value" :value="item.value" :label="item.label" />
         </el-select>
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button v-permission="'purchase:submit'" type="success" @click="openCreate">发起采购单</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="orderNo" label="采购单号" min-width="190" show-overflow-tooltip />
+        <el-table-column label="采购单号" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }"><span class="mono">{{ row.orderNo }}</span></template>
+        </el-table-column>
         <el-table-column label="门店" min-width="130">
           <template #default="{ row }">{{ storeName(row.storeId) }}</template>
         </el-table-column>
@@ -229,7 +232,7 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column label="总额" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.totalAmount) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.totalAmount) }}</span></template>
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
@@ -292,9 +295,11 @@ onMounted(() => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-SUP-03/F-SUP-04｜发起采购按门店等级计价（快照），入库自动增加门店台账（F-INV-02）</div>
+
     <!-- 新建采购单 -->
     <el-dialog v-model="createVisible" title="发起采购单（按门店加盟商等级计价）" width="720px">
-      <el-form label-width="80px">
+      <el-form label-width="100px">
         <el-form-item label="门店">
           <el-select v-model="createForm.storeId" placeholder="选择门店" filterable class="full">
             <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
@@ -369,7 +374,7 @@ onMounted(() => {
       <div v-loading="detailLoading">
         <template v-if="detail">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="采购单号" :span="2">{{ detail.order.orderNo }}</el-descriptions-item>
+            <el-descriptions-item label="采购单号" :span="2"><span class="mono">{{ detail.order.orderNo }}</span></el-descriptions-item>
             <el-descriptions-item label="门店">{{ storeName(detail.order.storeId) }}</el-descriptions-item>
             <el-descriptions-item label="计价等级">{{ detail.order.levelCode || '—' }}</el-descriptions-item>
             <el-descriptions-item label="总额">{{ fen2yuan(detail.order.totalAmount) }}</el-descriptions-item>
@@ -391,12 +396,14 @@ onMounted(() => {
                 {{ materials.find((m) => m.id === row.materialId)?.materialName ?? `原料${row.materialId}` }}
               </template>
             </el-table-column>
-            <el-table-column prop="qty" label="数量" width="90" align="right" />
+            <el-table-column label="数量" width="90" align="right">
+              <template #default="{ row }"><span class="mono">{{ row.qty }}</span></template>
+            </el-table-column>
             <el-table-column label="单价" width="100" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.unitPrice) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.unitPrice) }}</span></template>
             </el-table-column>
             <el-table-column label="小计" width="110" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.amount) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.amount) }}</span></template>
             </el-table-column>
           </el-table>
         </template>
@@ -406,25 +413,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 170px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
 .item-row {
   display: flex;
   align-items: center;

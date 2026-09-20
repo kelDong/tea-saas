@@ -155,7 +155,7 @@ onMounted(load)
 <template>
   <div class="franchisees-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -165,11 +165,16 @@ onMounted(load)
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openCreate">新增加盟商</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="franchiseeCode" label="编码" min-width="110" />
+        <el-table-column label="编码" min-width="110">
+          <template #default="{ row }">
+            <span class="mono">{{ row.franchiseeCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="franchiseeName" label="加盟商" min-width="150" />
         <el-table-column label="联系人" width="100">
           <template #default="{ row }">{{ row.contactName || '—' }}</template>
@@ -219,6 +224,8 @@ onMounted(load)
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-FRA-01</div>
+
     <!-- 新增/编辑 -->
     <el-dialog
       v-model="dialogVisible"
@@ -226,7 +233,7 @@ onMounted(load)
       width="480px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="编码" prop="franchiseeCode">
           <el-input v-model="form.franchiseeCode" :disabled="!!editing" maxlength="32" />
         </el-form-item>
@@ -255,8 +262,8 @@ onMounted(load)
     </el-dialog>
 
     <!-- 调级 -->
-    <el-dialog v-model="levelVisible" :title="`调整等级：${levelTarget?.franchiseeName ?? ''}`" width="440px">
-      <el-form label-width="90px">
+    <el-dialog v-model="levelVisible" :title="`调整等级：${levelTarget?.franchiseeName ?? ''}`" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="当前等级">
           <el-tag>{{ levelTarget?.levelCode }} 级</el-tag>
         </el-form-item>
@@ -276,8 +283,8 @@ onMounted(load)
     </el-dialog>
 
     <!-- 开账号 -->
-    <el-dialog v-model="accountVisible" :title="`开通账号：${accountTarget?.franchiseeName ?? ''}`" width="440px">
-      <el-form label-width="90px">
+    <el-dialog v-model="accountVisible" :title="`开通账号：${accountTarget?.franchiseeName ?? ''}`" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="登录账号">
           <el-input v-model="accountForm.username" maxlength="32" />
         </el-form-item>
@@ -295,24 +302,3 @@ onMounted(load)
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-</style>

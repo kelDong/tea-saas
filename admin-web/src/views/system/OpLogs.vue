@@ -41,7 +41,7 @@ onMounted(load)
 <template>
   <div class="oplogs-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.module"
           placeholder="模块（如 system/order/product）"
@@ -62,14 +62,22 @@ onMounted(load)
         <el-table-column label="时间" min-width="160">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column prop="module" label="模块" width="100" />
+        <el-table-column label="模块" width="100">
+          <template #default="{ row }">
+            <span class="mono">{{ row.module }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="action" label="操作" min-width="120" />
         <el-table-column prop="method" label="方法" min-width="240" show-overflow-tooltip />
-        <el-table-column prop="ip" label="IP" width="130">
-          <template #default="{ row }">{{ row.ip || '—' }}</template>
+        <el-table-column label="IP" width="130">
+          <template #default="{ row }">
+            <span class="mono">{{ row.ip || '—' }}</span>
+          </template>
         </el-table-column>
-        <el-table-column label="耗时" width="90">
-          <template #default="{ row }">{{ row.costMs != null ? `${row.costMs}ms` : '—' }}</template>
+        <el-table-column label="耗时" width="90" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.costMs != null ? `${row.costMs}ms` : '—' }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="结果" width="80">
           <template #default="{ row }">
@@ -91,25 +99,12 @@ onMounted(load)
         @size-change="search"
       />
     </el-card>
+
+    <div class="page-note">对应 PRD：F-SYS-03</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 260px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .params {
   margin: 0;
   padding: 8px 16px;

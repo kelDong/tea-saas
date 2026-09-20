@@ -97,7 +97,7 @@ onMounted(() => {
 <template>
   <div class="orders-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select v-model="query.storeId" placeholder="全部门店" clearable class="toolbar-select" @change="search">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
         </el-select>
@@ -109,7 +109,11 @@ onMounted(() => {
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="orderNo" label="订单号" min-width="200" show-overflow-tooltip />
+        <el-table-column label="订单号" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono">{{ row.orderNo }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="门店" min-width="130">
           <template #default="{ row }">{{ storeName(row.storeId) }}</template>
         </el-table-column>
@@ -122,21 +126,24 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column label="商品总额" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.totalAmount) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.totalAmount) }}</span></template>
         </el-table-column>
         <el-table-column label="优惠" width="90" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.discountAmount) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.discountAmount) }}</span></template>
         </el-table-column>
         <el-table-column label="实付" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.payAmount) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.payAmount) }}</span></template>
         </el-table-column>
         <el-table-column label="支付渠道" width="90">
           <template #default="{ row }">
             {{ row.payChannel != null ? (PAY_CHANNEL_MAP[row.payChannel] ?? row.payChannel) : '—' }}
           </template>
         </el-table-column>
-        <el-table-column prop="takeCode" label="取餐码" width="80">
-          <template #default="{ row }">{{ row.takeCode || '—' }}</template>
+        <el-table-column label="取餐码" width="80">
+          <template #default="{ row }">
+            <span v-if="row.takeCode" class="mono">{{ row.takeCode }}</span>
+            <template v-else>—</template>
+          </template>
         </el-table-column>
         <el-table-column label="支付时间" min-width="160">
           <template #default="{ row }">{{ formatDateTime(row.payTime) }}</template>
@@ -187,6 +194,8 @@ onMounted(() => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-ORD-01/F-ORD-02</div>
+
     <!-- 订单详情 -->
     <el-drawer v-model="drawerVisible" title="订单详情" size="640px">
       <div v-loading="detailLoading">
@@ -220,11 +229,11 @@ onMounted(() => {
             <template #default="{ row }">{{ row.specDesc || '—' }}</template>
           </el-table-column>
           <el-table-column label="单价" width="90" align="right">
-            <template #default="{ row }">{{ fen2yuan(row.price) }}</template>
+            <template #default="{ row }"><span class="mono">{{ fen2yuan(row.price) }}</span></template>
           </el-table-column>
           <el-table-column prop="qty" label="数量" width="70" align="center" />
           <el-table-column label="小计" width="100" align="right">
-            <template #default="{ row }">{{ fen2yuan(row.amount) }}</template>
+            <template #default="{ row }"><span class="mono">{{ fen2yuan(row.amount) }}</span></template>
           </el-table-column>
         </el-table>
 
@@ -254,21 +263,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 180px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .items-table {
   margin-top: 16px;
 }

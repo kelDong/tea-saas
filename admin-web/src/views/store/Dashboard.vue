@@ -95,7 +95,7 @@ onMounted(async () => {
 <template>
   <div class="store-dashboard">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select v-model="storeId" placeholder="选择门店" filterable class="toolbar-select">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
         </el-select>
@@ -103,57 +103,52 @@ onMounted(async () => {
       </div>
 
       <el-empty v-if="!storeId" description="当前租户暂无门店" />
-      <el-row v-else v-loading="settleLoading" :gutter="16">
-        <el-col :span="4">
-          <div class="stat">
-            <div class="label">今日订单</div>
-            <div class="value">{{ settle?.orderCount ?? 0 }}</div>
-          </div>
-        </el-col>
-        <el-col :span="5">
-          <div class="stat">
-            <div class="label">今日营业额</div>
-            <div class="value">{{ fen2yuan(settle?.salesAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="5">
-          <div class="stat">
-            <div class="label">客单价</div>
-            <div class="value">{{ fen2yuan(settle?.avgOrderAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="5">
-          <div class="stat">
-            <div class="label">微信实收</div>
-            <div class="value">{{ fen2yuan(settle?.wxAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="5">
-          <div class="stat">
-            <div class="label">储值实收</div>
-            <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-      </el-row>
+      <div v-else v-loading="settleLoading" class="stat-row">
+        <div class="stat-card">
+          <div class="label">今日订单</div>
+          <div class="value">{{ settle?.orderCount ?? 0 }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">今日营业额</div>
+          <div class="value">{{ fen2yuan(settle?.salesAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">客单价</div>
+          <div class="value">{{ fen2yuan(settle?.avgOrderAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">微信实收</div>
+          <div class="value">{{ fen2yuan(settle?.wxAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">储值实收</div>
+          <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
+        </div>
+      </div>
     </el-card>
 
-    <el-row v-if="storeId" :gutter="16" class="bottom-row">
+    <div v-if="storeId" class="grid2 bottom-row">
       <!-- 待处理订单 -->
-      <el-col :span="14">
-        <el-card shadow="never" class="full-height">
-          <template #header>待处理订单（待接单 / 制作中 / 待取餐）</template>
+      <div class="panel">
+        <div class="panel-head"><span class="title">待处理订单（待接单 / 制作中 / 待取餐）</span></div>
           <el-table v-loading="pendingLoading" :data="pending" stripe size="small">
-            <el-table-column prop="orderNo" label="单号" min-width="180" show-overflow-tooltip />
+            <el-table-column label="单号" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="mono">{{ row.orderNo }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="takeCode" label="取餐码" width="80" />
             <el-table-column label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.status === 2 ? 'warning' : row.status === 3 ? 'primary' : 'success'" size="small">
+                <el-tag :type="row.status === 2 ? 'warning' : row.status === 3 ? 'primary' : 'warning'" size="small">
                   {{ row.status === 2 ? '待接单' : row.status === 3 ? '制作中' : '待取餐' }}
                 </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="实付" width="100" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.payAmount) }}</template>
+              <template #default="{ row }">
+                <span class="mono">{{ fen2yuan(row.payAmount) }}</span>
+              </template>
             </el-table-column>
             <el-table-column label="操作" width="100" fixed="right">
               <template #default="{ row }">
@@ -188,17 +183,23 @@ onMounted(async () => {
             </el-table-column>
           </el-table>
           <el-empty v-if="!pendingLoading && !pending.length" description="暂无待处理订单" :image-size="60" />
-        </el-card>
-      </el-col>
+      </div>
 
       <!-- 库存预警 -->
-      <el-col :span="10">
-        <el-card shadow="never" class="full-height">
-          <template #header>库存预警（{{ warnings.length }} 条）</template>
+      <div class="panel">
+        <div class="panel-head"><span class="title">库存预警（{{ warnings.length }} 条）</span></div>
           <el-table v-loading="warnLoading" :data="warnings" stripe size="small" max-height="360">
             <el-table-column prop="materialName" label="原料" min-width="110" />
-            <el-table-column prop="stockQty" label="库存" width="80" align="right" />
-            <el-table-column prop="warnThreshold" label="阈值" width="80" align="right" />
+            <el-table-column label="库存" width="80" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.stockQty }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="阈值" width="80" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.warnThreshold }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="缺口" width="80" align="right">
               <template #default="{ row }">
                 <span class="gap">{{ row.gap }}</span>
@@ -206,44 +207,24 @@ onMounted(async () => {
             </el-table-column>
           </el-table>
           <el-empty v-if="!warnLoading && !warnings.length" description="库存充足" :image-size="60" />
-        </el-card>
-      </el-col>
-    </el-row>
+      </div>
+    </div>
+
+    <div class="page-note">对应 PRD：F-ORD-02（门店工作台）</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 220px;
-}
-
-.stat .label {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.stat .value {
-  font-size: 22px;
-  font-weight: 600;
-  margin-top: 6px;
-}
-
 .bottom-row {
   margin-top: 16px;
 }
 
-.full-height {
-  height: 100%;
+.grid2 .panel {
+  margin-bottom: 0;
 }
 
 .gap {
-  color: var(--el-color-danger);
+  color: var(--ts-danger);
   font-weight: 600;
 }
 </style>

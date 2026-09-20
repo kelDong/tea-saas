@@ -94,14 +94,15 @@ onMounted(() => {
 <template>
   <div class="tier-prices-page">
     <el-card shadow="never">
-      <div class="toolbar">
-        <el-select v-model="query.materialId" placeholder="全部原料" clearable filterable class="toolbar-select" @change="search">
+      <div class="page-toolbar">
+        <el-select v-model="query.materialId" placeholder="全部原料" clearable filterable class="toolbar-select toolbar-material" @change="search">
           <el-option v-for="item in materials" :key="item.id" :value="item.id" :label="item.materialName" />
         </el-select>
-        <el-select v-model="query.level" placeholder="全部等级" clearable class="toolbar-level" @change="search">
+        <el-select v-model="query.level" placeholder="全部等级" clearable class="toolbar-select" @change="search">
           <el-option v-for="level in LEVELS" :key="level" :value="level" :label="`${level} 级`" />
         </el-select>
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openDialog">批量定价</el-button>
       </div>
 
@@ -115,7 +116,7 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column label="单价" width="110" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.price) }}</template>
+          <template #default="{ row }"><span class="mono">{{ fen2yuan(row.price) }}</span></template>
         </el-table-column>
         <el-table-column label="更新时间" min-width="160">
           <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
@@ -134,9 +135,11 @@ onMounted(() => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-SUP-02｜按门店加盟等级 A/B/C 差异化供货价，采购确认时快照</div>
+
     <!-- 批量定价 -->
-    <el-dialog v-model="dialogVisible" title="批量定价（按原料设置 A/B/C 三档）" width="460px">
-      <el-form label-width="120px">
+    <el-dialog v-model="dialogVisible" title="批量定价（按原料设置 A/B/C 三档）" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="原料">
           <el-select v-model="priceForm.materialId" placeholder="选择原料" filterable class="full">
             <el-option
@@ -165,26 +168,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
+/* 原料下拉较宽（可筛选长名称），覆盖全局 toolbar-select 默认宽度 */
+.toolbar-material {
   width: 200px;
-}
-
-.toolbar-level {
-  width: 120px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
 }
 </style>

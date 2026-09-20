@@ -87,7 +87,7 @@ onMounted(async () => {
 <template>
   <div class="store-orders">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-select v-model="storeId" placeholder="选择门店" filterable class="toolbar-select">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
         </el-select>
@@ -99,7 +99,11 @@ onMounted(async () => {
 
       <el-empty v-if="!storeId" description="当前租户暂无门店" />
       <el-table v-else v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="orderNo" label="单号" min-width="190" show-overflow-tooltip />
+        <el-table-column label="单号" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono">{{ row.orderNo }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="takeCode" label="取餐码" width="80" />
         <el-table-column label="来源" width="90">
           <template #default="{ row }">{{ ORDER_SOURCE_MAP[row.orderSource] ?? row.orderSource }}</template>
@@ -112,7 +116,9 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column label="实付" width="100" align="right">
-          <template #default="{ row }">{{ fen2yuan(row.payAmount) }}</template>
+          <template #default="{ row }">
+            <span class="mono">{{ fen2yuan(row.payAmount) }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="支付方式" width="90">
           <template #default="{ row }">
@@ -171,7 +177,7 @@ onMounted(async () => {
       <div v-loading="detailLoading">
         <template v-if="detail">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="单号" :span="2">{{ detail.orderNo }}</el-descriptions-item>
+            <el-descriptions-item label="单号" :span="2"><span class="mono">{{ detail.orderNo }}</span></el-descriptions-item>
             <el-descriptions-item label="取餐码">{{ detail.takeCode ?? '—' }}</el-descriptions-item>
             <el-descriptions-item label="来源">{{ ORDER_SOURCE_MAP[detail.orderSource] ?? detail.orderSource }}</el-descriptions-item>
             <el-descriptions-item label="状态">
@@ -182,8 +188,8 @@ onMounted(async () => {
             <el-descriptions-item label="支付方式">
               {{ detail.payChannel ? (PAY_CHANNEL_MAP[detail.payChannel] ?? detail.payChannel) : '—' }}
             </el-descriptions-item>
-            <el-descriptions-item label="应付">{{ fen2yuan(detail.totalAmount) }}</el-descriptions-item>
-            <el-descriptions-item label="实付">{{ fen2yuan(detail.payAmount) }}</el-descriptions-item>
+            <el-descriptions-item label="应付"><span class="mono">{{ fen2yuan(detail.totalAmount) }}</span></el-descriptions-item>
+            <el-descriptions-item label="实付"><span class="mono">{{ fen2yuan(detail.payAmount) }}</span></el-descriptions-item>
             <el-descriptions-item label="下单时间">{{ formatDateTime(detail.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="支付时间">{{ formatDateTime(detail.payTime) }}</el-descriptions-item>
             <el-descriptions-item label="取餐时间">{{ formatDateTime(detail.finishTime) }}</el-descriptions-item>
@@ -196,42 +202,31 @@ onMounted(async () => {
                 <div v-if="row.specDesc" class="spec">{{ row.specDesc }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="qty" label="数量" width="70" align="right" />
+            <el-table-column label="数量" width="70" align="right">
+              <template #default="{ row }"><span class="mono">{{ row.qty }}</span></template>
+            </el-table-column>
             <el-table-column label="单价" width="90" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.price) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.price) }}</span></template>
             </el-table-column>
             <el-table-column label="小计" width="90" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.amount) }}</template>
+              <template #default="{ row }"><span class="mono">{{ fen2yuan(row.amount) }}</span></template>
             </el-table-column>
           </el-table>
         </template>
       </div>
     </el-drawer>
+
+    <div class="page-note">对应 PRD：F-ORD-03</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-select {
-  width: 200px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .items-table {
   margin-top: 16px;
 }
 
 .spec {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--ts-ink-2);
 }
 </style>

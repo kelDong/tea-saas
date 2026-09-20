@@ -47,7 +47,7 @@ onMounted(async () => {
   <div class="settle-page">
     <el-card shadow="never">
       <template #header>门店日结对账（R7 店长权限；口径：已支付未退款）</template>
-      <div class="toolbar">
+      <div class="page-toolbar">
         <span class="label">门店</span>
         <el-select v-model="storeId" placeholder="选择门店" filterable class="toolbar-select">
           <el-option v-for="store in stores" :key="store.id" :value="store.id" :label="store.storeName" />
@@ -57,90 +57,53 @@ onMounted(async () => {
       </div>
 
       <el-empty v-if="!storeId" description="当前租户暂无门店" />
-      <el-row v-else v-loading="loading" :gutter="16">
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">营业额</div>
-            <div class="value">{{ fen2yuan(settle?.salesAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">订单数</div>
-            <div class="value">{{ settle?.orderCount ?? 0 }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">客单价</div>
-            <div class="value">{{ fen2yuan(settle?.avgOrderAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-      </el-row>
+      <div v-else v-loading="loading" class="stat-row">
+        <div class="stat-card">
+          <div class="label">营业额</div>
+          <div class="value">{{ fen2yuan(settle?.salesAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">订单数</div>
+          <div class="value">{{ settle?.orderCount ?? 0 }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">客单价</div>
+          <div class="value">{{ fen2yuan(settle?.avgOrderAmount ?? 0) }}</div>
+        </div>
+      </div>
     </el-card>
 
     <el-card v-if="storeId" shadow="never" class="channel-card">
       <template #header>分渠道实收（现金 = 营业额 - 微信 - 储值，推导值）</template>
-      <el-row :gutter="16">
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">微信</div>
-            <div class="value">{{ fen2yuan(settle?.wxAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">储值</div>
-            <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="stat">
-            <div class="label">现金（推导）</div>
-            <div class="value">{{ fen2yuan(cashAmount) }}</div>
-          </div>
-        </el-col>
-      </el-row>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">微信</div>
+          <div class="value">{{ fen2yuan(settle?.wxAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">储值</div>
+          <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">现金（推导）</div>
+          <div class="value">{{ fen2yuan(cashAmount) }}</div>
+        </div>
+      </div>
 
       <el-descriptions :column="2" border class="refund-block">
         <el-descriptions-item label="退款笔数">{{ settle?.refundCount ?? 0 }}</el-descriptions-item>
         <el-descriptions-item label="退款金额">{{ fen2yuan(settle?.refundAmount ?? 0) }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <div class="page-note">对应 PRD：F-ORD-02（日结对账）</div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar .label {
+.page-toolbar .label {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.toolbar-select {
-  width: 220px;
-}
-
-.stat {
-  text-align: center;
-  padding: 8px 0;
-}
-
-.stat .label {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-.stat .value {
-  font-size: 24px;
-  font-weight: 600;
-  margin-top: 8px;
+  color: var(--ts-ink-2);
 }
 
 .channel-card {

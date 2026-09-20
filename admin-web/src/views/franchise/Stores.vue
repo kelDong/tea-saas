@@ -134,7 +134,7 @@ onMounted(async () => {
 <template>
   <div class="stores-page">
     <el-card shadow="never">
-      <div class="toolbar">
+      <div class="page-toolbar">
         <el-input
           v-model="query.keyword"
           placeholder="编码/名称"
@@ -144,11 +144,16 @@ onMounted(async () => {
           @clear="search"
         />
         <el-button type="primary" @click="search">查询</el-button>
+        <span class="toolbar-spacer" />
         <el-button type="success" @click="openCreate">新增门店</el-button>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe>
-        <el-table-column prop="storeCode" label="编码" min-width="110" />
+        <el-table-column label="编码" min-width="110">
+          <template #default="{ row }">
+            <span class="mono">{{ row.storeCode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="storeName" label="门店" min-width="150" />
         <el-table-column label="归属" width="120">
           <template #default="{ row }">
@@ -194,14 +199,16 @@ onMounted(async () => {
       />
     </el-card>
 
+    <div class="page-note">对应 PRD：F-FRA-02</div>
+
     <!-- 新增/编辑门店 -->
     <el-dialog
       v-model="dialogVisible"
       :title="editing ? `编辑门店：${editing.storeName}` : '新增门店'"
-      width="520px"
+      width="560px"
       @closed="formRef?.clearValidate()"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="编码" prop="storeCode">
           <el-input v-model="form.storeCode" :disabled="!!editing" maxlength="32" />
         </el-form-item>
@@ -239,25 +246,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
 .time-range {
   display: flex;
   align-items: center;

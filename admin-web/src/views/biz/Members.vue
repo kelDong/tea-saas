@@ -75,7 +75,7 @@ onMounted(() => {
             title="储值余额/可用积分/积分与储值流水在 C 端「我的」接口，后台一期提供列表与规则配置；等级规则（mem_member_level）接口二期开放"
             class="hint"
           />
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-input
               v-model="query.keyword"
               placeholder="昵称/手机号"
@@ -88,14 +88,22 @@ onMounted(() => {
           </div>
 
           <el-table v-loading="loading" :data="rows" stripe>
-            <el-table-column prop="id" label="会员ID" width="190" show-overflow-tooltip />
+            <el-table-column label="会员ID" width="190" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="mono">{{ row.id }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="昵称" min-width="140">
               <template #default="{ row }">{{ row.nickname || '—' }}</template>
             </el-table-column>
             <el-table-column label="手机号" width="130">
               <template #default="{ row }">{{ row.phone || '—' }}</template>
             </el-table-column>
-            <el-table-column prop="totalPoints" label="累计积分" width="100" align="right" />
+            <el-table-column label="累计积分" width="100" align="right">
+              <template #default="{ row }">
+                <span class="mono">{{ row.totalPoints }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="状态" width="90">
               <template #default="{ row }">
                 <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
@@ -143,6 +151,8 @@ onMounted(() => {
         </el-card>
       </el-tab-pane>
     </el-tabs>
+
+    <div class="page-note">对应 PRD：F-MEM-01/F-MEM-02/F-MEM-03</div>
   </div>
 </template>
 
@@ -151,28 +161,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.toolbar-input {
-  width: 220px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
 .config-form {
   max-width: 560px;
-}
-
-.tip {
-  margin-left: 12px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 </style>

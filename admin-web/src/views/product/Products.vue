@@ -282,7 +282,7 @@ onMounted(() => {
     <el-tabs>
       <el-tab-pane label="商品">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-input
               v-model="query.keyword"
               placeholder="编码/名称"
@@ -300,11 +300,16 @@ onMounted(() => {
             </el-select>
             <el-button type="primary" @click="search">查询</el-button>
             <el-button @click="reset">重置</el-button>
+            <span class="toolbar-spacer" />
             <el-button v-permission="'product:publish'" type="success" @click="openCreate">发布商品</el-button>
           </div>
 
           <el-table v-loading="loading" :data="rows" stripe>
-            <el-table-column prop="productCode" label="编码" min-width="120" />
+            <el-table-column label="编码" min-width="120">
+              <template #default="{ row }">
+                <span class="mono">{{ row.productCode }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="productName" label="商品名" min-width="150" />
             <el-table-column label="图片" width="70">
               <template #default="{ row }">
@@ -325,7 +330,9 @@ onMounted(() => {
               </template>
             </el-table-column>
             <el-table-column label="建议售价" width="100" align="right">
-              <template #default="{ row }">{{ fen2yuan(row.suggestPrice) }}</template>
+              <template #default="{ row }">
+                <span class="mono">{{ fen2yuan(row.suggestPrice) }}</span>
+              </template>
             </el-table-column>
             <el-table-column label="发布状态" width="90">
               <template #default="{ row }">
@@ -361,7 +368,7 @@ onMounted(() => {
 
       <el-tab-pane label="分类">
         <el-card shadow="never">
-          <div class="toolbar">
+          <div class="page-toolbar">
             <el-button type="success" @click="openCategoryCreate()">新增顶级分类</el-button>
           </div>
           <el-table :data="categories" row-key="id" default-expand-all stripe>
@@ -380,6 +387,8 @@ onMounted(() => {
         </el-card>
       </el-tab-pane>
     </el-tabs>
+
+    <div class="page-note">对应 PRD：F-PRD-01</div>
 
     <!-- 发布/编辑商品 -->
     <el-dialog
@@ -485,8 +494,9 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 调整建议售价 -->
-    <el-dialog v-model="priceVisible" :title="`调整建议售价：${priceTarget?.productName ?? ''}`" width="420px">
+    <el-dialog v-model="priceVisible" :title="`调整建议售价：${priceTarget?.productName ?? ''}`" width="480px">
       <el-input-number v-model="priceYuan" :min="0.01" :step="1" :precision="2" class="full" />
+      <span class="tip">元</span>
       <template #footer>
         <el-button @click="priceVisible = false">取消</el-button>
         <el-button type="primary" @click="submitPrice">确定</el-button>
@@ -494,8 +504,8 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 分类编辑 -->
-    <el-dialog v-model="categoryDialogVisible" :title="categoryEditing ? '编辑分类' : '新增分类'" width="420px">
-      <el-form label-width="90px">
+    <el-dialog v-model="categoryDialogVisible" :title="categoryEditing ? '编辑分类' : '新增分类'" width="480px">
+      <el-form label-width="100px">
         <el-form-item label="分类名">
           <el-input v-model="categoryForm.categoryName" maxlength="32" />
         </el-form-item>
@@ -515,30 +525,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.toolbar-input {
-  width: 200px;
-}
-
-.toolbar-select {
-  width: 140px;
-}
-
-.pager {
-  margin-top: 16px;
-  justify-content: flex-end;
-}
-
-.full {
-  width: 100%;
-}
-
 .spec-block {
   width: 100%;
   padding: 10px;
