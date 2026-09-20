@@ -121,18 +121,20 @@ WHERE m.`id` BETWEEN 400 AND 499 AND (m.`menu_type` < 3 OR m.`id` = 4035 OR m.`i
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 14000, 0, 5, m.id FROM `sys_menu` m
 WHERE (m.`id` BETWEEN 200 AND 299 OR m.`id` BETWEEN 500 AND 699) AND m.`menu_type` < 3;
--- R6 加盟商：工作台/上架/库存/采购/订单/报表 + listing/inv/purchase 按钮（PRD 5.3：submit/receive/cancel 未确认前）
+-- R6 加盟商：工作台/上架/库存/采购/订单/报表 + listing/inv/purchase/订单按钮（PRD 5.3：accept/make/finish/refund/cancel/submit/receive）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 15000, 0, 6, m.id FROM `sys_menu` m
-WHERE m.`id` IN (201, 204, 202, 304, 403, 404) OR m.`id` IN (3041,3042,3043,4031,4034,4035,4041,4042);
--- R7 店长：门店端全部 + 订单/收银/盘点按钮（无退款→P2 决策：店长有退款，店员无）
+WHERE m.`id` IN (201, 204, 202, 304, 403, 404)
+   OR m.`id` IN (3041,3042,3043,4031,4034,4035,4041,4042)
+   OR m.`id` IN (7021,7022,7023,7024,7025);
+-- R7 店长：门店端全部 + 盘点/流水按钮 4041/4042（挂菜单 404 下，PRD 5.3 库存 R7 ✅；退款→P2 决策：店长有，店员无）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 16000, 0, 7, m.id FROM `sys_menu` m
-WHERE m.`id` BETWEEN 700 AND 799;
--- R8 店员：门店端（工作台/接单/收银/库存只读；无退款 7024、无日结 705、无盘点 4041）
+WHERE m.`id` BETWEEN 700 AND 799 OR m.`id` IN (4041, 4042);
+-- R8 店员：门店端（工作台/接单/收银/库存只读；无退款 7024、无取消 7025、无日结 705、无盘点 4041——PRD 5.3 R8 仅 accept/make/finish/pos）
 INSERT INTO `sys_role_menu` (`id`,`tenant_id`,`role_id`,`menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY m.id) + 17000, 0, 8, m.id FROM `sys_menu` m
-WHERE m.`id` IN (701, 702, 703, 704, 7021, 7022, 7023, 7025, 7031);
+WHERE m.`id` IN (701, 702, 703, 704, 7021, 7022, 7023, 7031);
 
 -- ---------- 平台管理员账号 ----------
 -- ⚠️ 密码为 BCrypt 占位：首次部署后用 PasswordUtil.encode("你的密码") 生成的哈希 UPDATE 此行
