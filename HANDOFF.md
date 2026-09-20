@@ -1,11 +1,14 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M7（增量功能批次：采购联动/工作台/R2 权限/MinIO 图传）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M8（视觉收敛收官 + 按钮权限种子两轮对齐 PRD）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+f773eb0 fix(system): R4种子去掉inv只读越权按钮——PRD 5.2库存台账R4仅👁；运行库补R4采购三钮对齐PRD 5.3 F-SUP-03
+541aba5 fix(system): 按钮权限种子对齐PRD 5.3——R6补订单五钮/R7补盘点与门店钮/R8去取消越权 F-ORD-02
+d9c881a feat(admin-web): 23页视觉收敛——工具栏/mono/统计卡统一模式类+scoped去重（视觉规范§7清单收官）
 cd5b050 feat(system): MinIO图片上传+商品表单图传 F-PRD-01
 95c5cb2 fix(supply+system): R2采购链路权限对齐PRD——种子收敛R3∪R4∪R5、服务层R2蕴含R4 F-SUP-03 F-SUP-04
 46a1140 feat(admin-web): 工作台升级——待办/门店排行/库存预警面板+退款列表接线 F-RPT-02 F-PAY-02
@@ -216,6 +219,23 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - **bean 循环依赖陷阱**：`MinioConfig.afterPropertiesSet` 内调自身 `minioClient()` @Bean 方法 → 启动即环；改用一次性本地客户端做桶自愈
 - 原料（bom_material）按设计无图片字段，本期不涉及
 
+## 2.11 M8 —— ✅ 视觉收敛收官 + 按钮权限种子两轮对齐 PRD（2026-09-20，M7 后 3 commits）
+
+| commit | 内容 | 飞书 |
+|---|---|---|
+| d9c881a | 23 页视觉收敛收官：工具栏/统计卡换 `.page-toolbar/.stat-card/.mono` 模式类 + scoped 重复删除（+475/-652，视觉规范 §7 清单全部完成） | 无匹配未同步 |
+| 541aba5 | 按钮权限种子对齐 PRD 5.3：R6 补订单五钮 7021~7025、R7 补盘点/流水 4041/4042、R8 去越权退款 7024/取消 7025 F-ORD-02 | 无匹配未同步 |
+| f773eb0 | R4 种子去 inv 越权钮（PRD 5.2 库存台账 R4 仅👁，收回 4041/4042）；运行库补 R4 采购三钮（4032/4033/4035）F-SUP-03 | 无匹配未同步 |
+
+**要点**：
+- **视觉收敛**（M6 遗留清偿）：admin-web 全部 23 页已套模式类，纯类名替换 + 删 scoped 重复，无功能变更；`npm run build` 通过
+- **权限种子三轮收敛后口径**（02_data.sql + 本地运行库均已同步）：
+  - R4 供应链：采购处理钮 4032（确认）/4033（发货）/4035（取消），**无** purchase:submit、**无** inv 按钮（库存台账只读）
+  - R6 加盟商：订单五钮 7021~7025（accept/make/finish/refund/cancel）+ 原 listing/inv/purchase 钮
+  - R7 店长：门店端全部 + 盘点 4041/流水 4042（挂菜单 404 下）；退款店长有、店员无（P2 决策）
+  - R8 店员：仅 accept/make/finish/pos（7021/7022/7023/7031），无退款/取消/日结/盘点
+- 后续对齐权限时以 **PRD 5.2/5.3 权限矩阵为准**，改种子必须同步刷运行库 `sys_role_menu`（本地 Docker tea_saas）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -230,11 +250,13 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **admin-web 剩余 ~19 页视觉收敛**（M6 后续，量小）：照范例页（Materials=表格页/Coupons=表格+弹窗/Workspace=仪表盘）批量套模式类，清单见视觉规范 §7；改 EP 样式前必读 §3.2 陷阱记录（尤其陷阱 1/4）
-2. **端到端冒烟**（推荐先做）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，用种子账号走一遍：R2 登录 → BOM 建配方 → 商品发布 → 门店上架 → store/Pos 收银下单收款 → 报表/日结查看数字回流
-3. 二期 backlog（按优先级）：管理端订单取消/退款操作 endpoint（退款**列表**已接，46a1140）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
-4. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：管理端订单取消/退款操作 endpoint（退款**列表**已接，46a1140）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+2. **Review 方案 §4 次要项**（`docs/茶饮SaaS-Review修复方案.md` §5/§6）：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试
+3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
+4. 端到端冒烟（回归用）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，种子账号走全链路；权限种子 M8 刚两轮调整，建议顺带回归 R4/R6/R7/R8 按钮可见性
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
+
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
