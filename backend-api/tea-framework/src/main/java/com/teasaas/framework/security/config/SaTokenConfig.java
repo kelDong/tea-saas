@@ -47,11 +47,12 @@ public class SaTokenConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new SaInterceptor(handler -> {
-                    // 未登录会被 SaInterceptor 直接拦截（NotLoginException -> 全局处理器）
-                    if (StpUtil.isLogin()) {
-                        Long tenantId = SecurityUtils.getTenantIdFromSession();
-                        TenantContext.setTenantId(tenantId);
-                    }
+                    // 登录校验：自定义 auth 函数会替换 SaInterceptor 默认的 checkLogin，
+                    // 必须显式调用，否则 B 端接口未登录也能进（曾致裸奔，冒烟发现）
+                    StpUtil.checkLogin();
+                    // 每次请求把会话中的 tenantId 注入 TenantContext（多租户主线）
+                    Long tenantId = SecurityUtils.getTenantIdFromSession();
+                    TenantContext.setTenantId(tenantId);
                 }))
                 .addPathPatterns("/**")
                 .excludePathPatterns(WHITELIST);
