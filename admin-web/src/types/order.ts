@@ -119,3 +119,23 @@ export interface PayRefund {
   refundTime: string | null
   createTime: string
 }
+
+/** 申请退款出参（后端 RefundVO，F-PAY-02） */
+export interface RefundVO {
+  refundNo: string
+  orderId: number
+  orderNo: string
+  /** 原支付流水ID（储值单为空） */
+  paymentId: number | null
+  /** 退款金额（分），整单退=实付 */
+  amount: number
+  /** 1微信原路/2退储值 */
+  refundType: number
+  /** 券不退还=0 */
+  couponReturned: number
+  reason: string | null
+  /** 1处理中/2成功/3失败 */
+  status: number
+  refundTime: string | null
+  createTime: string
+}

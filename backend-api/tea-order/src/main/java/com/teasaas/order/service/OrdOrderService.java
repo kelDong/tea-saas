@@ -35,6 +35,12 @@ public interface OrdOrderService {
     /** 核销取餐（待取餐→已完成） */
     void finish(Long id);
 
+    /**
+     * B 端取消订单（待支付→已取消）：R2 全租户；R6/R7 名下门店（R8 无取消权限，PRD 5.3）。
+     * 条件更新 1→6 + 回补库存（bizType=2）+ 积分（幂等），券不退还——对齐 C 端 appCancel。
+     */
+    void cancel(Long id, String reason);
+
     // ==================== C 端（X-Tenant-Id + X-Member-Id 注入） ====================
 
     /** 订单预览试算：只算钱，不落库不扣库存；用券/积分抵扣需传 memberId */

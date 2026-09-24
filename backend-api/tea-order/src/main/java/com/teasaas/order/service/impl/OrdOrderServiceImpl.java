@@ -199,6 +199,24 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         transition(id, STATUS_WAIT_TAKE, STATUS_FINISHED, true);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancel(Long id, String reason) {
+        OrdOrder order = requireExists(id);
+        checkCancelAccess(order.getStoreId());
+        int affected = ordOrderMapper.update(null, new LambdaUpdateWrapper<OrdOrder>()
+                .set(OrdOrder::getStatus, STATUS_CANCELLED)
+                .set(OrdOrder::getCancelReason,
+                        reason == null || reason.isBlank() ? "门店取消" : reason.trim())
+                .eq(OrdOrder::getId, id)
+                .eq(OrdOrder::getStatus, STATUS_PENDING));
+        if (affected == 0) {
+            throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
+        }
+        restoreOrderStock(id, StockBizType.TIMEOUT_RESTORE);
+        refundPointsQuietly(order); // 积分回补（bizNo=orderNo 幂等）；券不退还（PRD 一期）
+    }
+
     // ==================== C 端（X-Tenant-Id / X-Member-Id 注入） ====================
 
     @Override
@@ -665,6 +683,20 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         List<String> roles = SecurityUtils.getRolesFromSession();
         if (!roles.contains(ROLE_R7) && !roles.contains(ROLE_R8)) {
             throw new BizException(ErrorCode.FORBIDDEN, "仅店长/店员可手工收银");
+        }
+    }
+
+    /** B 端取消订单权限：R2 全租户；R6/R7 名下门店（R8 无取消权限，PRD 5.3） */
+    private void checkCancelAccess(Long storeId) {
+        if (hasRole(ROLE_R2)) {
+            return;
+        }
+        List<String> roles = SecurityUtils.getRolesFromSession();
+        if (!roles.contains(ROLE_R6) && !roles.contains(ROLE_R7)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无取消订单权限");
+        }
+        if (!listBoundStoreIds().contains(storeId)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "非名下门店");
         }
     }
 

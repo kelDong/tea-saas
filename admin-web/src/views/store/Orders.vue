@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { franchiseApi } from '@/api/franchise'
-import { orderApi } from '@/api/order'
+import { orderApi, refundApi } from '@/api/order'
 import type { OrdOrder, OrderDetailVO } from '@/types/order'
 import { ORDER_SOURCE_MAP, ORDER_STATUS_MAP, PAY_CHANNEL_MAP } from '@/constants/order'
 import { fen2yuan, formatDateTime } from '@/utils/format'
@@ -42,7 +42,7 @@ function search() {
 
 watch(storeId, search)
 
-// ---------- 状态流转（2→3→4→5） ----------
+// ---------- 状态流转（2→3→4→5）+ 取消/退款 ----------
 const flowLoading = ref<number | null>(null)
 
 async function flow(row: OrdOrder, action: 'accept' | 'make' | 'finish') {
@@ -56,6 +56,60 @@ async function flow(row: OrdOrder, action: 'accept' | 'make' | 'finish') {
     if (detail.value?.id === row.id) {
       detail.value = await orderApi.detail(row.id)
     }
+  } finally {
+    flowLoading.value = null
+  }
+}
+
+/** B 端取消（仅待支付单；回补库存/积分，券不退还） */
+async function cancelOrder(row: OrdOrder) {
+  let reason: string | undefined
+  try {
+    const { value } = await ElMessageBox.prompt('取消原因（可留空）', `取消订单 ${row.orderNo}`, {
+      confirmButtonText: '确认取消',
+      cancelButtonText: '返回',
+      inputPlaceholder: '默认「门店取消」',
+      inputValidator: (v: string) => !v || v.length <= 128 || '原因最长128字',
+      type: 'warning',
+    })
+    reason = value?.trim() || undefined
+  } catch {
+    return
+  }
+  flowLoading.value = row.id
+  try {
+    await orderApi.cancel(row.id, reason)
+    ElMessage.success('订单已取消')
+    load()
+  } finally {
+    flowLoading.value = null
+  }
+}
+
+/** 整单退款（仅已支付/制作中/待取餐；实付原路退回，回补库存，不可撤销） */
+async function refundOrder(row: OrdOrder) {
+  let reason: string | undefined
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `整单退款 ${fen2yuan(row.payAmount)} 元将按支付渠道退回并回补库存，不可撤销`,
+      `退款 ${row.orderNo}`,
+      {
+        confirmButtonText: '确认退款',
+        cancelButtonText: '返回',
+        inputPlaceholder: '退款原因（可留空）',
+        inputValidator: (v: string) => !v || v.length <= 128 || '原因最长128字',
+        type: 'warning',
+      },
+    )
+    reason = value?.trim() || undefined
+  } catch {
+    return
+  }
+  flowLoading.value = row.id
+  try {
+    await refundApi.apply(row.id, reason)
+    ElMessage.success('退款已受理')
+    load()
   } finally {
     flowLoading.value = null
   }
@@ -128,7 +182,7 @@ onMounted(async () => {
         <el-table-column label="下单时间" min-width="160">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="190" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">详情</el-button>
             <el-button
@@ -155,6 +209,22 @@ onMounted(async () => {
               :loading="flowLoading === row.id"
               @click="flow(row, 'finish')"
             >核销取餐</el-button>
+            <el-button
+              v-if="row.status === 1"
+              v-permission="'order:cancel'"
+              link
+              type="danger"
+              :loading="flowLoading === row.id"
+              @click="cancelOrder(row)"
+            >取消</el-button>
+            <el-button
+              v-if="[2, 3, 4].includes(row.status)"
+              v-permission="'order:refund'"
+              link
+              type="danger"
+              :loading="flowLoading === row.id"
+              @click="refundOrder(row)"
+            >退款</el-button>
           </template>
         </el-table-column>
       </el-table>

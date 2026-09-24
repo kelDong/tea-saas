@@ -1,8 +1,9 @@
 # 茶饮 SaaS 系统 · 接口需求文档
 
-> 版本：v1.1 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
+> 版本：v1.2 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
 > 本文档是**前后端契约**：每个接口对应 PRD 功能编号（F-XXX），标注权限角色、入参出参、MVP 优先级。后端 Controller 与前端 API 层以此为准开发。
 >
+> **v1.2 变更**：补 B 端取消订单接口（8.2，`POST /api/v1/orders/{id}/cancel`，对齐 PRD 5.3 R6/R7 取消按钮）。
 > **v1.1 变更**：C 端接口会话化（Review §2）——wx-login 签发会员 token，`/api/app/v1/**` 除公开接口外统一 `Authorization: Bearer` 鉴权，废弃裸 `X-Member-Id` 头传递（兼容期一个迭代，详见 1.1）。
 
 ---
@@ -314,6 +315,7 @@
 | 订单列表 | GET | `/api/v1/orders?storeId=&status=` | R6/R7(门店)/R2(全) | MVP |
 | 订单详情 | GET | `/api/v1/orders/{id}` | 同上 | MVP |
 | 顾客取消（待支付） | POST | `/api/app/v1/orders/{id}/cancel` | C 端 | MVP |
+| 门店取消（待支付，v1.2） | POST | `/api/v1/orders/{id}/cancel` | R2(全)/R6/R7(名下门店) | MVP |
 | 超时取消（定时） | — | tea-job 定时任务 | 系统 | MVP |
 | 订单列表（C 端） | GET | `/api/app/v1/orders` | C 端 | MVP |
 

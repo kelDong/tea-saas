@@ -2,6 +2,7 @@ package com.teasaas.order.controller;
 
 import com.teasaas.common.result.PageResult;
 import com.teasaas.common.result.Result;
+import com.teasaas.order.dto.OrderCancelDTO;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.service.OrdOrderService;
 import com.teasaas.order.vo.OrderDetailVO;
@@ -14,13 +15,15 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * B 端订单接口（F-ORD-02/03，接口需求 8.2/8.3）
- * 列表/详情：R2 全租户，R6/R7/R8 名下门店；接单/制作/核销：R6/R7/R8 名下门店。
+ * 列表/详情：R2 全租户，R6/R7/R8 名下门店；接单/制作/核销：R6/R7/R8 名下门店；
+ * 取消（待支付单）：R2 全租户，R6/R7 名下门店（R8 无取消权限，PRD 5.3）。
  * （新订单 WS 推送 /ws/orders 属 P1-2，随门店端 store-terminal 一期落地，本批次预留）
  */
 @Validated
@@ -70,6 +73,16 @@ public class OrdOrderController {
     @PostMapping("/{id}/finish")
     public Result<Void> finish(@PathVariable("id") Long id) {
         ordOrderService.finish(id);
+        return Result.success();
+    }
+
+    @OpLog(module = "order", action = "取消订单")
+    @Operation(summary = "B 端取消订单（待支付→已取消，回补库存；R2/R6/R7）")
+    @PostMapping("/{id}/cancel")
+    public Result<Void> cancel(
+            @Parameter(description = "订单ID") @PathVariable("id") Long id,
+            @RequestBody(required = false) @Validated OrderCancelDTO dto) {
+        ordOrderService.cancel(id, dto == null ? null : dto.getReason());
         return Result.success();
     }
 }
