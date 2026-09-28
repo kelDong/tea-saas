@@ -1,11 +1,14 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M8（视觉收敛收官 + 按钮权限种子两轮对齐 PRD）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M9（B 端订单取消/退款闭环 + SaInterceptor 登录校验修复）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+81385ef feat(order): B端订单取消/退款闭环——新增POST /orders/{id}/cancel（待支付1→6回补库存，R2/R6/R7）+退款按钮前端接线（后端F-PAY-02已有） F-ORD-02 F-PAY-02
+bdf1bdd fix(framework): SaInterceptor显式checkLogin——自定义auth函数会替换默认登录校验，B端接口曾可未登录访问（冒烟发现，修复后401）
+af57518 docs(handoff): 进度快照更新至M8——视觉收敛收官(23/23页)+权限种子两轮对齐PRD 5.2/5.3
 f773eb0 fix(system): R4种子去掉inv只读越权按钮——PRD 5.2库存台账R4仅👁；运行库补R4采购三钮对齐PRD 5.3 F-SUP-03
 541aba5 fix(system): 按钮权限种子对齐PRD 5.3——R6补订单五钮/R7补盘点与门店钮/R8去取消越权 F-ORD-02
 d9c881a feat(admin-web): 23页视觉收敛——工具栏/mono/统计卡统一模式类+scoped去重（视觉规范§7清单收官）
@@ -35,9 +38,6 @@ e05ccbc feat(admin-web): F3供应链四页接后端——供应商供货绑定/�
 4f3e347 fix(admin-web): PageResult 字段 records→list 对齐后端 PageResult.java（骨架类型笔误，会导致所有分页页空白）
 672368e chore(tools): 飞书任务清单同步——批次2产品线四页t100023完成记录
 fb17e2a feat(admin-web): F2产品线四页接后端——原料/配方毛利试算/商品规格/门店上架缺料校验 F-BOM-01~03 F-PRD-01~03
-b0ebc01 chore(tools): 飞书任务清单同步——批次1系统+订单前端三页t100022完成记录
-e2499a7 feat(admin-web): F1前端三页接后端——用户/角色/操作日志/订单查询流转 + api/types/constants 工程层
-2427235 feat(system): F-SYS-01补缺——品牌租户CRUD/启停+套餐列表（/api/admin/v1，R1 Service内校验，平台表无租户隔离）
 a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录见 git log：cfc037d 会员营销报表 / 57e204b 订单支付 / 0b526f5 商品库存 / 754668b MapperScan 修复 / 913a5e8 BOM / 96cdb60 加盟 / 7f3f3b5 供应链）
 ```
 
@@ -236,27 +236,42 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
   - R8 店员：仅 accept/make/finish/pos（7021/7022/7023/7031），无退款/取消/日结/盘点
 - 后续对齐权限时以 **PRD 5.2/5.3 权限矩阵为准**，改种子必须同步刷运行库 `sys_role_menu`（本地 Docker tea_saas）
 
+## 2.12 M9 —— ✅ 登录校验修复 + B 端订单取消/退款闭环（2026-09-24，M8 后 2 commits）
+
+| commit | 内容 | 接口 | 飞书 |
+|---|---|---|---|
+| bdf1bdd | SaInterceptor 显式 `StpUtil.checkLogin()`——自定义 auth 函数会**替换**默认登录校验，B 端接口曾可未登录访问（冒烟发现，修复后 401） | 框架级 | 无匹配未同步 |
+| 81385ef | B 端取消订单 `POST /api/v1/orders/{id}/cancel` + biz/Orders、store/Orders 退款按钮前端接线（退款后端 F-PAY-02 已有） | F-ORD-02 F-PAY-02 | 无匹配未同步 |
+
+**要点**：
+- **鉴权陷阱（后续改 SaTokenConfig 必读）**：`SaInterceptor` 传入自定义 auth 函数后**不再自动 checkLogin**——必须显式 `StpUtil.checkLogin()`；修复前未登录请求可直接穿透到 Controller（tenantId 注入逻辑 `if (StpUtil.isLogin())` 只是静默跳过）。C 端 `/api/app/**` 不受影响（AppMemberInterceptor 自行校验）
+- 取消端点：body 可选 `reason`（空默认"门店取消"）；条件更新 `status 1→6`（affected=0 → ORDER_STATUS_NOT_ALLOWED，防并发）+ `restoreOrderStock(TIMEOUT_RESTORE)` 回补库存 + `refundPointsQuietly` 积分回补（bizNo=orderNo 幂等）；**券不退还**（PRD 一期口径）
+- 取消权限：R2 全租户 / R6/R7 名下门店 / **R8 无**（PRD 5.3，M8 种子已去 R8 越权取消钮 7025，前后端口径闭环）；`@OpLog` 留痕
+- 前端：biz/Orders（品牌侧）与 store/Orders（门店侧）退款/取消按钮接线，api/order.ts + types/order.ts 补 cancel/refund
+- 接口需求文档升 v1.2：8.2 节补门店取消行（权限 R2 全/R6/R7 名下门店）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
 2. **登录查用户的租户绕过**：`SysUserMapper.selectByUsernameForLogin` 带 `@InterceptorIgnore` + 注释声明——业务查询禁止模仿（规范 6.1）
-3. **C 端公开接口租户注入**：X-Tenant-Id 请求头 + `TenantContext` 手动 set（参考 franchise 附近门店实现）；SaTokenConfig 白名单放行 `/api/app/**`；会员身份当前用 X-Member-Id 头传递（wx-login 已出 memberId，**C 端会话化二期**再收敛成 token）
+3. **C 端公开接口租户注入**：X-Tenant-Id 请求头 + `TenantContext` 手动 set（参考 franchise 附近门店实现）；SaTokenConfig 白名单放行 `/api/app/**`；会员身份 M5 R3 起已会话化（wx-login 签发 Bearer token，AppMemberInterceptor 解析；双头兼容期一个迭代后硬切）
 4. **实体 id**：`IdType.ASSIGN_ID`；平台表与关联/流水表不继承 BaseEntity（字段与表严格对齐）；生成器按 DDL 自动路由模块/判断继承
 5. **飞书同步**：`E:\DeepSeekHarness\tools\feishu-task.ps1`（create/complete/list，PS5.1 兼容）；本地映射 `tools/feishu-tasks.json`；凭据 `tools/feishu.config.json`（**禁止提交**）
 6. **pre-commit hook**：`tea-saas/.git/hooks/pre-commit`（克隆需重装；内容可从 `.harness/skills/code-review-commit/SKILL.md` 恢复）
 7. **MySQL/Redis/MinIO 均已就绪（Docker）**：`tea-mysql`（8.4.11，宿主 **3307**）+ `tea-redis`（宿主 **6379** 无密码）+ MinIO（本机自有 `minio` 容器，宿主 **9000** API / **9001** 控制台，minioadmin/minioadmin，数据 bind mount `C:\Users\lenovo\minio\data`，桶 tea-saas 由后端启动自建）；`tea_saas` **40 表**（批次 4 新增 mem_member_config + pay_refund.payment_id 放开 NULL）+种子已初始化；application.yml 本地默认直连，后端免环境变量启动。3306 是 phpStudy 的 MySQL 5.7（跑不了 02_data.sql 窗口函数，禁止用于本项目）
 8. **前端 npm 陷阱**：`npm install --prefix` 会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11 / npmmirror
 9. **代码生成器**：`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=prd_*,inv_*`（先 `mvn -pl tea-generator -am package -DskipTests` 或复用已编译 classes；跳过已存在文件）
+10. **SaInterceptor 自定义 auth 函数会替换默认登录校验**（bdf1bdd 教训，曾致 B 端未登录裸奔）：必须显式 `StpUtil.checkLogin()`；C 端 `/api/app/**` 走 AppMemberInterceptor 自行校验（Bearer 为主，双头 X-Tenant-Id/X-Member-Id 兼容期内 WARN 放行）
 
 ## 4. 接手后的建议顺序
 
-1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：管理端订单取消/退款操作 endpoint（退款**列表**已接，46a1140）、后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. **Review 方案 §4 次要项**（`docs/茶饮SaaS-Review修复方案.md` §5/§6）：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试
 3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
 4. 端到端冒烟（回归用）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，种子账号走全链路；权限种子 M8 刚两轮调整，建议顺带回归 R4/R6/R7/R8 按钮可见性
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
