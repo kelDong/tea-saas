@@ -8,6 +8,7 @@ import com.teasaas.common.result.ErrorCode;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.member.service.MemPointsService;
+import com.teasaas.member.service.MemWalletService;
 import com.teasaas.order.dto.PosPayDTO;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.mapper.OrdOrderMapper;
@@ -66,6 +67,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private static final int ORDER_STATUS_PAID = 2;
     private static final int ORDER_STATUS_CANCELLED = 6;
     private static final int CHANNEL_WX = 1;
+    private static final int CHANNEL_WALLET = 2;
     private static final int CHANNEL_CASH = 3;
 
     /** 回调任务状态：1待处理/2成功/3失败终态 */
@@ -84,6 +86,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private final PayCallbackTaskMapper payCallbackTaskMapper;
     private final OrdOrderMapper ordOrderMapper;
     private final MemPointsService memPointsService;
+    private final MemWalletService memWalletService;
     private final SysUserStoreMapper sysUserStoreMapper;
     private final TenantMapper tenantMapper;
     private final ObjectMapper objectMapper;
@@ -142,6 +145,54 @@ public class PayPaymentServiceImpl implements PayPaymentService {
             throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
         }
 
+        // 会员绑定（二期）：为空则条件更新绑定（防并发置位）；已绑不同会员则拒绝
+        if (dto.getMemberId() != null) {
+            if (order.getMemberId() == null) {
+                int bound = ordOrderMapper.update(null, new LambdaUpdateWrapper<OrdOrder>()
+                        .set(OrdOrder::getMemberId, dto.getMemberId())
+                        .eq(OrdOrder::getId, order.getId())
+                        .eq(OrdOrder::getStatus, ORDER_STATUS_PENDING));
+                if (bound == 0) {
+                    throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
+                }
+            } else if (!order.getMemberId().equals(dto.getMemberId())) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "订单已绑定其他会员");
+            }
+        }
+
+        if (dto.getPayChannel() == POS_CHANNEL_BALANCE) {
+            // 储值独立通道（P0-4）：镜像 C 端 appCreate 储值分支，不写 pay_payment
+            // （对账口径：payments 侧查全部成功流水，储值单落表必出 PAYMENT_NO_ORDER 误报）
+            if (dto.getMemberId() == null) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "储值收款必须选择会员");
+            }
+            long payAmount = order.getPayAmount() == null ? 0L : order.getPayAmount();
+            if (payAmount > 0) {
+                memWalletService.payForOrder(dto.getMemberId(), order.getOrderNo(), payAmount);
+            }
+            int paid = ordOrderMapper.update(null, new LambdaUpdateWrapper<OrdOrder>()
+                    .set(OrdOrder::getStatus, ORDER_STATUS_PAID)
+                    .set(OrdOrder::getPayTime, LocalDateTime.now())
+                    .set(OrdOrder::getPayChannel, CHANNEL_WALLET)
+                    .set(OrdOrder::getBalanceAmount, payAmount)
+                    .eq(OrdOrder::getId, order.getId())
+                    .eq(OrdOrder::getStatus, ORDER_STATUS_PENDING));
+            if (paid == 0) {
+                throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
+            }
+            // 储值单不经支付模块，订单侧直接发积分（bizNo=orderNo 幂等）
+            memPointsService.earnOnPaid(dto.getMemberId(), order.getOrderNo(), payAmount);
+
+            PosPayVO walletVo = new PosPayVO();
+            walletVo.setOrderId(order.getId());
+            walletVo.setOrderNo(order.getOrderNo());
+            walletVo.setPayAmount(payAmount);
+            walletVo.setReceiveAmount(payAmount);
+            walletVo.setChangeAmount(0L);
+            walletVo.setPaymentNo(order.getOrderNo());
+            return walletVo;
+        }
+
         int orderChannel;
         String transactionId;
         long receive;
@@ -157,7 +208,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
             transactionId = null;
             receive = order.getPayAmount();
         } else {
-            throw new BizException(ErrorCode.PARAM_ERROR, "储值收款暂未开放");
+            throw new BizException(ErrorCode.PARAM_ERROR, "收款渠道不合法");
         }
 
         PayPayment payment = reuseOrCreate(order, orderChannel);

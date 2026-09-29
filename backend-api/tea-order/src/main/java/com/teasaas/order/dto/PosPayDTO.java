@@ -26,4 +26,7 @@ public class PosPayDTO implements Serializable {
     @Schema(description = "实收金额(分)，现金找零用；现金渠道必传且不得小于应收")
     @Min(value = 1, message = "实收金额必须为正数")
     private Long receiveAmount;
+
+    @Schema(description = "会员ID：储值渠道必填；现金/微信可选（传则绑会员并发放积分）")
+    private Long memberId;
 }

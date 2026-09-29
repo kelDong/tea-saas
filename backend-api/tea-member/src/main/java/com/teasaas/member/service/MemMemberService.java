@@ -10,6 +10,7 @@ import com.teasaas.member.entity.MemRechargeRecord;
 import com.teasaas.member.vo.MemberAssetsVO;
 import com.teasaas.member.vo.MemberVO;
 import com.teasaas.member.vo.PointsConfigVO;
+import com.teasaas.member.vo.PosMemberVO;
 import com.teasaas.member.vo.WxLoginVO;
 
 /**
@@ -32,6 +33,9 @@ public interface MemMemberService {
 
     /** 会员列表（B 端，R2/R5/R6；keyword 匹配昵称/手机号） */
     PageResult<MemMember> page(int page, int size, String keyword);
+
+    /** POS 会员搜索（F-ORD-04 储值收款选会员，R7/R8；带储值余额，最小字段集） */
+    PageResult<PosMemberVO> searchForPos(String keyword, int page, int size);
 
     /** 会员资产汇总（B 端 10.1 二期，R2/R5/R6：余额/累计充值消费/可用累计积分） */
     MemberAssetsVO assets(Long memberId);

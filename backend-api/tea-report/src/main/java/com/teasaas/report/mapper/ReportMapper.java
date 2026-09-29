@@ -3,6 +3,7 @@ package com.teasaas.report.mapper;
 import com.teasaas.report.vo.DailySettleVO;
 import com.teasaas.report.vo.HotProductVO;
 import com.teasaas.report.vo.InventorySummaryVO;
+import com.teasaas.report.vo.MaterialConsumptionVO;
 import com.teasaas.report.vo.StoreRankVO;
 import com.teasaas.report.vo.StoreReportVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -59,4 +60,13 @@ public interface ReportMapper {
     /** 库存总览（预警缺口优先，分页） */
     List<InventorySummaryVO> selectInventorySummary(@Param("limit") int limit,
                                                     @Param("offset") int offset);
+
+    /**
+     * 原料消耗趋势平铺行（材料×日，F-RPT-03）：净消耗口径 biz_type∈{1,2,3}
+     * （下单扣−超时回补−退款回补），TOP N 材料按期内净消耗降序取自子查询。
+     */
+    List<MaterialConsumptionVO.Row> selectMaterialConsumption(@Param("start") LocalDateTime start,
+                                                              @Param("end") LocalDateTime end,
+                                                              @Param("storeId") Long storeId,
+                                                              @Param("limit") int limit);
 }

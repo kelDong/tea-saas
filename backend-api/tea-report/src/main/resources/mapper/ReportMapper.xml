@@ -127,4 +127,32 @@
          ORDER BY warn DESC, s.stock_qty ASC, s.store_id, m.material_name
          LIMIT #{limit} OFFSET #{offset}
     </select>
+
+    <!-- 原料消耗趋势（F-RPT-03）：净消耗 = 下单扣(1)−超时回补(2)−退款回补(3)，
+         change_qty 入正出负故 SUM(-change_qty) 天然得净额；采购入库(4)/盘点(5)不计。
+         TOP N 子查询按期内净消耗降序；tenant_id 由租户插件追加（主查询与子查询均改写） -->
+    <select id="selectMaterialConsumption" resultType="com.teasaas.report.vo.MaterialConsumptionVO$Row">
+        SELECT l.material_id   AS materialId,
+               m.material_name AS materialName,
+               m.unit          AS unit,
+               DATE(l.create_time) AS statDate,
+               SUM(-l.change_qty) AS qty
+          FROM inv_stock_log l
+          JOIN bom_material m ON m.id = l.material_id
+          JOIN (SELECT material_id
+                  FROM inv_stock_log
+                 WHERE biz_type IN (1, 2, 3)
+                   AND create_time &gt;= #{start}
+                   AND create_time &lt; #{end}
+                   <if test="storeId != null">AND store_id = #{storeId}</if>
+                 GROUP BY material_id
+                 ORDER BY SUM(-change_qty) DESC
+                 LIMIT #{limit}) top ON top.material_id = l.material_id
+         WHERE l.biz_type IN (1, 2, 3)
+           AND l.create_time &gt;= #{start}
+           AND l.create_time &lt; #{end}
+           <if test="storeId != null">AND l.store_id = #{storeId}</if>
+         GROUP BY l.material_id, m.material_name, m.unit, DATE(l.create_time)
+         ORDER BY l.material_id, statDate
+    </select>
 </mapper>

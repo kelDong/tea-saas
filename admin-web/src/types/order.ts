@@ -80,6 +80,17 @@ export interface PosPayDTO {
   payChannel: number
   /** 实收（分），现金必传且≥应收 */
   receiveAmount?: number
+  /** 会员ID：储值必填；现金/微信可选（传则绑会员并发放积分） */
+  memberId?: number
+}
+
+/** POS 会员搜索结果（储值收款选会员，最小字段集） */
+export interface PosMemberVO {
+  id: number
+  nickname: string | null
+  phone: string | null
+  /** 储值余额（分） */
+  balance: number
 }
 
 /** POS 收款返回 */
@@ -99,7 +110,7 @@ export interface PosPayVO {
 export const POS_PAY_CHANNEL_MAP: Record<number, string> = {
   1: '现金',
   2: '微信收款码',
-  3: '储值（未开放）',
+  3: '储值',
 }
 
 /** 退款流水（PayRefund 实体直出，F-PAY-02 一期仅整单退） */

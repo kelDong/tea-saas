@@ -40,6 +40,9 @@ public class CouponVO implements Serializable {
     @Schema(description = "状态：1未用/2已用/3过期")
     private Integer status;
 
+    @Schema(description = "适用范围：1全场/2指定商品（小程序端展示用）")
+    private Integer scopeType;
+
     @Schema(description = "有效期起")
     private LocalDateTime validStart;
 

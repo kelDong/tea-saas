@@ -5,6 +5,7 @@ import com.teasaas.common.result.Result;
 import com.teasaas.marketing.dto.CouponTemplateDTO;
 import com.teasaas.marketing.entity.MktCouponTemplate;
 import com.teasaas.marketing.service.MktCouponTemplateService;
+import com.teasaas.marketing.vo.CouponTemplateDetailVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,9 +41,9 @@ public class CouponTemplateController {
         return Result.success(mktCouponTemplateService.page(page, size, status));
     }
 
-    @Operation(summary = "券模板详情（编辑回填）")
+    @Operation(summary = "券模板详情（编辑回填，含适用范围商品）")
     @GetMapping("/{id}")
-    public Result<MktCouponTemplate> detail(
+    public Result<CouponTemplateDetailVO> detail(
             @Parameter(description = "模板ID") @PathVariable("id") Long id) {
         return Result.success(mktCouponTemplateService.detail(id));
     }

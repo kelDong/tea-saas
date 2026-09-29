@@ -8,9 +8,12 @@ import com.teasaas.common.result.PageResult;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.marketing.dto.CouponTemplateDTO;
+import com.teasaas.marketing.entity.MktCouponScope;
 import com.teasaas.marketing.entity.MktCouponTemplate;
+import com.teasaas.marketing.mapper.MktCouponScopeMapper;
 import com.teasaas.marketing.mapper.MktCouponTemplateMapper;
 import com.teasaas.marketing.service.MktCouponTemplateService;
+import com.teasaas.marketing.vo.CouponTemplateDetailVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,7 +37,11 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
     private static final int TYPE_FULL_CUT = 1;
     private static final int VALID_TYPE_FIXED = 1;
 
+    private static final int SCOPE_ALL = 1;
+    private static final int SCOPE_PRODUCT = 2;
+
     private final MktCouponTemplateMapper mktCouponTemplateMapper;
+    private final MktCouponScopeMapper mktCouponScopeMapper;
 
     @Override
     public PageResult<MktCouponTemplate> page(int page, int size, Integer status) {
@@ -47,9 +54,28 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
     }
 
     @Override
-    public MktCouponTemplate detail(Long id) {
+    public CouponTemplateDetailVO detail(Long id) {
         requireViewRole();
-        return requireTemplate(id);
+        MktCouponTemplate template = requireTemplate(id);
+        CouponTemplateDetailVO vo = new CouponTemplateDetailVO();
+        vo.setId(template.getId());
+        vo.setName(template.getName());
+        vo.setType(template.getType());
+        vo.setThreshold(template.getThreshold());
+        vo.setAmount(template.getAmount());
+        vo.setDiscount(template.getDiscount());
+        vo.setTotalQty(template.getTotalQty());
+        vo.setPerLimit(template.getPerLimit());
+        vo.setValidType(template.getValidType());
+        vo.setValidStart(template.getValidStart());
+        vo.setValidEnd(template.getValidEnd());
+        vo.setValidDays(template.getValidDays());
+        vo.setStatus(template.getStatus());
+        List<CouponTemplateDetailVO.ScopeNode> products =
+                mktCouponScopeMapper.selectScopeWithProduct(id);
+        vo.setScopeType(products.isEmpty() ? SCOPE_ALL : SCOPE_PRODUCT);
+        vo.setProducts(products);
+        return vo;
     }
 
     @Override
@@ -64,6 +90,7 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
         template.setCreateTime(LocalDateTime.now());
         template.setUpdateTime(LocalDateTime.now());
         mktCouponTemplateMapper.insert(template);
+        saveScope(template.getId(), dto);
         return template;
     }
 
@@ -76,9 +103,35 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
         applyFields(template, dto);
         template.setUpdateTime(LocalDateTime.now());
         mktCouponTemplateMapper.updateById(template);
+        saveScope(id, dto);
     }
 
     // ==================== 私有工具 ====================
+
+    /**
+     * 落适用范围行：先按模板全删再按需插入——scopeType=1 只删不插
+     * （无行=全场，存量模板天然兼容）；scopeType=2 必填非空商品列表。
+     * 表无 create_time/del_flag，全量重建语义（勿改逻辑删）。
+     */
+    private void saveScope(Long templateId, CouponTemplateDTO dto) {
+        mktCouponScopeMapper.delete(new LambdaQueryWrapper<MktCouponScope>()
+                .eq(MktCouponScope::getCouponId, templateId));
+        if (dto.getScopeType() == null || dto.getScopeType() == SCOPE_ALL) {
+            return;
+        }
+        if (dto.getProductIds() == null || dto.getProductIds().isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "指定商品券必须选择商品");
+        }
+        Long tenantId = TenantContext.getTenantId();
+        for (Long productId : dto.getProductIds().stream().distinct().toList()) {
+            MktCouponScope row = new MktCouponScope();
+            row.setTenantId(tenantId);
+            row.setCouponId(templateId);
+            row.setScopeType(SCOPE_PRODUCT);
+            row.setTargetId(productId);
+            mktCouponScopeMapper.insert(row);
+        }
+    }
 
     private MktCouponTemplate requireTemplate(Long id) {
         MktCouponTemplate template = mktCouponTemplateMapper.selectById(id);

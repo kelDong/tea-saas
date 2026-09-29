@@ -7,6 +7,7 @@ import com.teasaas.report.vo.DailySettleVO;
 import com.teasaas.report.vo.DashboardVO;
 import com.teasaas.report.vo.HotProductVO;
 import com.teasaas.report.vo.InventorySummaryVO;
+import com.teasaas.report.vo.MaterialConsumptionVO;
 import com.teasaas.report.vo.StoreRankVO;
 import com.teasaas.report.vo.StoreReportVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,5 +77,17 @@ public class ReportController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size) {
         return Result.success(reportService.inventorySummary(page, size));
+    }
+
+    @Operation(summary = "原料消耗趋势（F-RPT-03，R4/R2 全部门店、R6 名下门店；集采计划）")
+    @GetMapping("/material-consumption")
+    public Result<MaterialConsumptionVO> materialConsumption(
+            @Parameter(description = "统计天数（含今日），默认7，最大90")
+            @RequestParam(required = false) Integer days,
+            @Parameter(description = "门店ID（R4/R2 可空=全部门店；R6 必填名下门店）")
+            @RequestParam(required = false) Long storeId,
+            @Parameter(description = "TOP N 材料，默认10，最大50")
+            @RequestParam(required = false) Integer limit) {
+        return Result.success(reportService.materialConsumption(days, storeId, limit));
     }
 }

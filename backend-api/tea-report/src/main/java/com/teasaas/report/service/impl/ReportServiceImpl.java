@@ -11,6 +11,7 @@ import com.teasaas.report.vo.DailySettleVO;
 import com.teasaas.report.vo.DashboardVO;
 import com.teasaas.report.vo.HotProductVO;
 import com.teasaas.report.vo.InventorySummaryVO;
+import com.teasaas.report.vo.MaterialConsumptionVO;
 import com.teasaas.report.vo.StoreRankVO;
 import com.teasaas.report.vo.StoreReportVO;
 import com.teasaas.system.entity.SysUserStore;
@@ -22,7 +23,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -36,6 +39,7 @@ import java.util.Set;
 public class ReportServiceImpl implements ReportService {
 
     private static final String ROLE_R2 = "R2";
+    private static final String ROLE_R4 = "R4";
     private static final String ROLE_R5 = "R5";
     private static final String ROLE_R6 = "R6";
     private static final String ROLE_R7 = "R7";
@@ -141,6 +145,50 @@ public class ReportServiceImpl implements ReportService {
         List<InventorySummaryVO> records =
                 reportMapper.selectInventorySummary(s, (p - 1) * s);
         return PageResult.of(records, nvl(reportMapper.countInventory()), p, s);
+    }
+
+    @Override
+    public MaterialConsumptionVO materialConsumption(Integer days, Long storeId, Integer limit) {
+        // 权限：R4 总部供应链/R2 品牌（storeId 可空=全部门店）；R6 名下门店（对齐 12.1 storeTrend 口径）
+        if (hasRole(ROLE_R4) || hasRole(ROLE_R2)) {
+            // R2/R4：全部门店视角
+        } else if (hasRole(ROLE_R6)) {
+            requireBoundStore(storeId);
+        } else {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅总部供应链/总部/加盟商可看原料消耗");
+        }
+        int d = (days == null || days < 1) ? 7 : Math.min(days, 90);
+        int l = (limit == null || limit < 1) ? 10 : Math.min(limit, 50);
+        LocalDate today = LocalDate.now();
+        List<MaterialConsumptionVO.Row> rows = reportMapper.selectMaterialConsumption(
+                today.minusDays(d - 1L).atStartOfDay(), today.plusDays(1).atStartOfDay(),
+                storeId, l);
+
+        // 平铺行（材料×日，SQL 已按 material_id 排序）聚合成嵌套节点
+        Map<Long, MaterialConsumptionVO.ItemNode> byMaterial = new LinkedHashMap<>();
+        for (MaterialConsumptionVO.Row row : rows) {
+            MaterialConsumptionVO.ItemNode node = byMaterial.computeIfAbsent(
+                    row.getMaterialId(), k -> {
+                        MaterialConsumptionVO.ItemNode n = new MaterialConsumptionVO.ItemNode();
+                        n.setMaterialId(row.getMaterialId());
+                        n.setMaterialName(row.getMaterialName());
+                        n.setUnit(row.getUnit());
+                        return n;
+                    });
+            node.setTotalQty(node.getTotalQty().add(row.getQty()));
+            MaterialConsumptionVO.DailyNode daily = new MaterialConsumptionVO.DailyNode();
+            daily.setDate(row.getStatDate());
+            daily.setQty(row.getQty());
+            node.getDaily().add(daily);
+        }
+        MaterialConsumptionVO vo = new MaterialConsumptionVO();
+        vo.setDays(d);
+        vo.setStoreId(storeId);
+        // 外层 GROUP BY 按 material_id 排序会打散 TOP N 降序，这里按期内合计回排
+        vo.setItems(byMaterial.values().stream()
+                .sorted((a, b) -> b.getTotalQty().compareTo(a.getTotalQty()))
+                .toList());
+        return vo;
     }
 
     // ==================== 私有工具 ====================

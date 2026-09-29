@@ -2,4 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.teasaas.marketing.mapper.MktCouponScopeMapper">
     <!-- 生成器骨架：扩展 SQL 手写于此（查询须显式列名，规范 5.2） -->
+
+    <!-- 模板范围商品：LEFT JOIN 保留已删商品（前端占位提示）；tenant_id 由租户插件追加 -->
+    <select id="selectScopeWithProduct" resultType="com.teasaas.marketing.vo.CouponTemplateDetailVO$ScopeNode">
+        SELECT s.target_id    AS productId,
+               p.product_name AS productName
+          FROM mkt_coupon_scope s
+          LEFT JOIN prd_product p ON p.id = s.target_id
+         WHERE s.coupon_id = #{couponId}
+           AND s.scope_type = 2
+    </select>
+
+    <!-- 指定商品 target_id 列表（试算 base 用；无行 = 全场券） -->
+    <select id="selectTargetIds" resultType="java.lang.Long">
+        SELECT s.target_id
+          FROM mkt_coupon_scope s
+         WHERE s.coupon_id = #{couponId}
+           AND s.scope_type = 2
+    </select>
 </mapper>

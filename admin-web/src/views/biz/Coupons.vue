@@ -4,7 +4,8 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
 import { couponApi } from '@/api/marketing'
-import type { CouponTemplateDTO, MktCouponTemplate } from '@/types/marketing'
+import { productApi } from '@/api/product'
+import type { CouponTemplateDTO, CouponTemplateDetailVO, MktCouponTemplate } from '@/types/marketing'
 import { fen2yuan, formatDateTime } from '@/utils/format'
 
 // ---------- 列表 ----------
@@ -64,7 +65,31 @@ const form = reactive({
   range: [] as string[],
   validDays: undefined as number | undefined,
   status: 1,
+  scopeType: 1,
+  productIds: [] as number[],
 })
+
+// ---------- 指定商品范围（远程搜商品，productApi.page 无角色校验 R5 可用） ----------
+interface ProductOption {
+  id: number
+  productName: string
+}
+const productOptions = ref<ProductOption[]>([])
+const productLoading = ref(false)
+
+async function searchProducts(keyword: string) {
+  if (!keyword) {
+    productOptions.value = []
+    return
+  }
+  productLoading.value = true
+  try {
+    const result = await productApi.page({ keyword, page: 1, size: 20 })
+    productOptions.value = result.list.map((p) => ({ id: p.id, productName: p.productName }))
+  } finally {
+    productLoading.value = false
+  }
+}
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入券名称', trigger: 'blur' }],
@@ -86,13 +111,16 @@ function openCreate() {
     range: [],
     validDays: undefined,
     status: 1,
+    scopeType: 1,
+    productIds: [],
   })
+  productOptions.value = []
   dialogVisible.value = true
 }
 
-/** 编辑回填：按 id 拉详情（二期A 前列表行内数据回填改为真详情，防止列表字段不全） */
+/** 编辑回填：按 id 拉详情（含指定商品范围，二期B） */
 async function openEdit(row: MktCouponTemplate) {
-  const detail = await couponApi.detail(row.id)
+  const detail: CouponTemplateDetailVO = await couponApi.detail(row.id)
   editing.value = detail
   Object.assign(form, {
     name: detail.name,
@@ -106,7 +134,11 @@ async function openEdit(row: MktCouponTemplate) {
     range: detail.validStart && detail.validEnd ? [detail.validStart, detail.validEnd] : [],
     validDays: detail.validDays ?? undefined,
     status: detail.status,
+    scopeType: detail.scopeType ?? 1,
+    productIds: (detail.scope ?? []).map((s) => s.productId),
   })
+  // 已选商品直接作候选，保证回显标签（无需先输关键词）
+  productOptions.value = (detail.scope ?? []).map((s) => ({ id: s.productId, productName: s.productName }))
   dialogVisible.value = true
 }
 
@@ -128,6 +160,10 @@ async function submit() {
     ElMessage.warning('请填写领取后有效天数')
     return
   }
+  if (form.scopeType === 2 && form.productIds.length === 0) {
+    ElMessage.warning('指定商品券请选择适用商品')
+    return
+  }
   const payload: CouponTemplateDTO = {
     name: form.name,
     type: form.type,
@@ -141,6 +177,8 @@ async function submit() {
     validEnd: form.validType === 1 ? form.range[1] : undefined,
     validDays: form.validType === 2 ? form.validDays : undefined,
     status: form.status,
+    scopeType: form.scopeType,
+    productIds: form.scopeType === 2 ? [...new Set(form.productIds)] : undefined,
   }
   if (editing.value) {
     await couponApi.update(editing.value.id, payload)
@@ -153,22 +191,25 @@ async function submit() {
   load()
 }
 
-/** 快捷停用/启用（PUT status 切换，其余字段原样回传） */
+/** 快捷停用/启用（PUT status 切换；先拉详情带上范围字段，防指定商品券 scope 被清） */
 async function toggleStatus(row: MktCouponTemplate) {
   const next = row.status === 1 ? 2 : 1
+  const detail: CouponTemplateDetailVO = await couponApi.detail(row.id)
   await couponApi.update(row.id, {
-    name: row.name,
-    type: row.type,
-    threshold: row.threshold ?? undefined,
-    amount: row.amount ?? undefined,
-    discount: row.discount ?? undefined,
-    totalQty: row.totalQty,
-    perLimit: row.perLimit,
-    validType: row.validType,
-    validStart: row.validStart ?? undefined,
-    validEnd: row.validEnd ?? undefined,
-    validDays: row.validDays ?? undefined,
+    name: detail.name,
+    type: detail.type,
+    threshold: detail.threshold ?? undefined,
+    amount: detail.amount ?? undefined,
+    discount: detail.discount ?? undefined,
+    totalQty: detail.totalQty,
+    perLimit: detail.perLimit,
+    validType: detail.validType,
+    validStart: detail.validStart ?? undefined,
+    validEnd: detail.validEnd ?? undefined,
+    validDays: detail.validDays ?? undefined,
     status: next,
+    scopeType: detail.scopeType ?? 1,
+    productIds: detail.scopeType === 2 ? (detail.scope ?? []).map((s) => s.productId) : undefined,
   })
   ElMessage.success(next === 1 ? '已启用' : '已停用')
   load()
@@ -277,6 +318,34 @@ onMounted(load)
         <el-form-item v-if="form.type === 2" label="折扣率">
           <el-input-number v-model="form.discount" :min="0.01" :max="0.99" :precision="2" :step="0.01" />
           <span class="tip">如 0.90 = 9 折</span>
+        </el-form-item>
+        <el-form-item label="适用范围">
+          <el-radio-group v-model="form.scopeType">
+            <el-radio :value="1">全场商品</el-radio>
+            <el-radio :value="2">指定商品</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.scopeType === 2" label="适用商品">
+          <el-select
+            v-model="form.productIds"
+            multiple
+            filterable
+            remote
+            clearable
+            reserve-keyword
+            placeholder="输入商品名关键词搜索"
+            :remote-method="searchProducts"
+            :loading="productLoading"
+            class="full"
+          >
+            <el-option
+              v-for="p in productOptions"
+              :key="p.id"
+              :value="p.id"
+              :label="p.productName"
+            />
+          </el-select>
+          <span class="tip">门槛/优惠按适用商品小计计算</span>
         </el-form-item>
         <el-form-item label="发放总量">
           <el-input-number v-model="form.totalQty" :min="-1" />

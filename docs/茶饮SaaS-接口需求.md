@@ -1,8 +1,9 @@
 # 茶饮 SaaS 系统 · 接口需求文档
 
-> 版本：v1.3 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
+> 版本：v1.4 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
 > 本文档是**前后端契约**：每个接口对应 PRD 功能编号（F-XXX），标注权限角色、入参出参、MVP 优先级。后端 Controller 与前端 API 层以此为准开发。
 >
+> **v1.4 变更**：二期补缺批次B——指定商品券（11.1 `scopeType/productIds`，门槛/优惠按适用商品小计）、POS 储值收款会员入参+会员搜索（8.4 `memberId`、`GET /pos/members`）、原料消耗趋势参数/口径/角色细化（12.3）。
 > **v1.3 变更**：二期补缺批次A——后台会员资产/流水（10.1）、券模板详情（11.1）、角色菜单授权回显+全量菜单树（2.3）。
 > **v1.2 变更**：补 B 端取消订单接口（8.2，`POST /api/v1/orders/{id}/cancel`，对齐 PRD 5.3 R6/R7 取消按钮）。
 > **v1.1 变更**：C 端接口会话化（Review §2）——wx-login 签发会员 token，`/api/app/v1/**` 除公开接口外统一 `Authorization: Bearer` 鉴权，废弃裸 `X-Member-Id` 头传递（兼容期一个迭代，详见 1.1）。
@@ -341,9 +342,11 @@
 |---|---|---|---|---|
 | 手工下单 | POST | `/api/v1/pos/orders` | R7/R8 | MVP |
 | 收款确认 | POST | `/api/v1/pos/orders/{id}/pay` | R7/R8 | MVP |
+| POS 会员搜索 | GET | `/api/v1/pos/members?keyword=&page=&size=` | R7/R8 | 二期B |
 
 **手工下单入参**：`{storeId, items:[{listingId, qty, specOptionIds[]}]}` → 生成 `order_source=2` 订单，顾客无需登录。
-**收款入参**：`{payChannel(1现金/2微信收款码Native/3储值), receiveAmount(分,现金找零用)}`；三选一不支持混合（P0-4）；现金录入实收找零；计入门店日结。
+**收款入参**：`{payChannel(1现金/2微信收款码Native/3储值), receiveAmount(分,现金找零用), memberId}`；三选一不支持混合（P0-4）；现金录入实收找零；计入门店日结。`memberId`（二期B）：**储值渠道必填**（余额不足整单失败回滚），现金/微信选填（传则绑会员并自动积分）；储值收款即时扣钱包并置单 `pay_channel=2/balance_amount`，**不产生 pay_payment 流水**（对账口径，同 C 端储值单）。
+**POS 会员搜索出参**：`{id, nickname, phone, balance(分)}`——最小字段集（不透出 openid），供收银台储值收款选会员。
 
 ---
 
@@ -425,7 +428,9 @@
 | 我的券包 | GET | `/api/app/v1/coupons` | C 端会员 | MVP |
 | 券核销联动 | — | 订单结算时自动 | 系统 | MVP |
 
-**券模板入参**：`{name, type(1满减/2折扣), threshold(分), amount(分)/discount, totalQty, perLimit, validType, validStart, validEnd/validDays}`；核销联动订单金额（F-MKT-01 AC）。
+**券模板入参**：`{name, type(1满减/2折扣), threshold(分), amount(分)/discount, totalQty, perLimit, validType, validStart, validEnd/validDays, scopeType, productIds[]}`（v1.4）。
+**适用范围（v1.4）**：`scopeType` 1全场（默认，缺省=1）/2指定商品；`scopeType=2` 时 `productIds[]` 必填非空。**门槛/优惠均按适用商品小计计算**：指定商品券取订单中命中商品的 amount 之和为基数 `base`（订单不含适用商品→不可用；满减取 `min(amount, base)`，折扣取 `base − floor(base×discount)`）；全场券口径不变。
+**券模板详情出参**：模板全字段 + `scopeType` + `scope:[{productId, productName}]`；我的券包出参含 `scopeType`。
 
 ---
 
@@ -451,7 +456,11 @@
 
 | 接口 | 方法 | URL | 角色 | 优先级 |
 |---|---|---|---|---|
-| 原料消耗趋势 | GET | `/api/v1/reports/material-consumption` | R4 | **二期** |
+| 原料消耗趋势 | GET | `/api/v1/reports/material-consumption?days=&storeId=&limit=` | R4/R2(全部门店)/R6(名下门店) | 二期B |
+
+**参数**（v1.4 细化）：`days` 默认 7、上限 90（含今日）；`storeId` R4/R2 可空=全部门店，R6 必填名下门店；`limit` 默认 10、上限 50（期内净消耗降序 TOP N）。
+**净消耗口径**：`inv_stock_log` `biz_type∈{1,2,3}` 的 `SUM(-change_qty)` = 下单扣 − 超时回补 − 退款回补；采购入库(4)/盘点(5)不计。
+**出参**：`{days, storeId, items:[{materialId, materialName, unit, totalQty, daily:[{date, qty}]}]}`。
 
 ---
 

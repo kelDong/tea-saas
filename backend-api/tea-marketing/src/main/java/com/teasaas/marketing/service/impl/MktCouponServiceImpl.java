@@ -7,9 +7,12 @@ import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.PageResult;
 import com.teasaas.framework.tenant.TenantContext;
+import com.teasaas.marketing.dto.CouponScopeItemDTO;
 import com.teasaas.marketing.entity.MktCoupon;
+import com.teasaas.marketing.entity.MktCouponScope;
 import com.teasaas.marketing.entity.MktCouponTemplate;
 import com.teasaas.marketing.mapper.MktCouponMapper;
+import com.teasaas.marketing.mapper.MktCouponScopeMapper;
 import com.teasaas.marketing.mapper.MktCouponTemplateMapper;
 import com.teasaas.marketing.service.MktCouponService;
 import com.teasaas.marketing.vo.CouponVO;
@@ -21,7 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,8 +48,11 @@ public class MktCouponServiceImpl implements MktCouponService {
     private static final int VALID_TYPE_FIXED = 1;
     private static final int UNLIMITED_QTY = -1;
 
+    private static final int SCOPE_PRODUCT = 2;
+
     private final MktCouponMapper mktCouponMapper;
     private final MktCouponTemplateMapper mktCouponTemplateMapper;
+    private final MktCouponScopeMapper mktCouponScopeMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -84,7 +93,9 @@ public class MktCouponServiceImpl implements MktCouponService {
             coupon.setValidEnd(now.plusDays(template.getValidDays()));
         }
         mktCouponMapper.insert(coupon);
-        return toVO(coupon, template);
+        CouponVO vo = toVO(coupon, template);
+        vo.setScopeType(resolveScopeType(templateId));
+        return vo;
     }
 
     @Override
@@ -94,18 +105,31 @@ public class MktCouponServiceImpl implements MktCouponService {
                         .eq(MktCoupon::getMemberId, memberId)
                         .eq(status != null, MktCoupon::getStatus, status)
                         .orderByDesc(MktCoupon::getId));
-        Map<Long, MktCouponTemplate> templates = result.getRecords().isEmpty()
+        List<MktCoupon> records = result.getRecords();
+        Map<Long, MktCouponTemplate> templates = records.isEmpty()
                 ? Map.of()
-                : mktCouponTemplateMapper.selectBatchIds(result.getRecords().stream()
+                : mktCouponTemplateMapper.selectBatchIds(records.stream()
                         .map(MktCoupon::getTemplateId).distinct().toList())
                 .stream().collect(Collectors.toMap(MktCouponTemplate::getId, Function.identity()));
-        return PageResult.of(result.getRecords().stream()
-                .map(c -> toVO(c, templates.get(c.getTemplateId()))).toList(),
+        // 指定商品模板集合（scope_type=2 存在行即指定；批量一次查询防 N+1）
+        Set<Long> productScoped = records.isEmpty() ? Set.of()
+                : mktCouponScopeMapper.selectList(new LambdaQueryWrapper<MktCouponScope>()
+                        .in(MktCouponScope::getCouponId, templates.keySet())
+                        .eq(MktCouponScope::getScopeType, SCOPE_PRODUCT))
+                .stream().map(MktCouponScope::getCouponId).collect(Collectors.toSet());
+        return PageResult.of(records.stream()
+                .map(c -> {
+                    CouponVO vo = toVO(c, templates.get(c.getTemplateId()));
+                    vo.setScopeType(productScoped.contains(c.getTemplateId())
+                            ? SCOPE_PRODUCT : 1);
+                    return vo;
+                }).toList(),
                 result.getTotal(), page, size);
     }
 
     @Override
-    public long calcDiscount(Long couponId, Long memberId, long orderAmount) {
+    public long calcDiscount(Long couponId, Long memberId, long orderAmount,
+                             List<CouponScopeItemDTO> items) {
         MktCoupon coupon = requireCoupon(couponId, memberId);
         LocalDateTime now = LocalDateTime.now();
         if (coupon.getStatus() != STATUS_UNUSED
@@ -116,25 +140,38 @@ public class MktCouponServiceImpl implements MktCouponService {
         if (template == null) {
             throw new BizException(ErrorCode.COUPON_TEMPLATE_NOT_FOUND);
         }
+        // 计价基数：指定商品券 = 适用商品小计（base），全场券 = 整单金额
+        List<Long> targets = mktCouponScopeMapper.selectTargetIds(template.getId());
+        long base = orderAmount;
+        if (targets != null && !targets.isEmpty()) {
+            Set<Long> targetSet = new HashSet<>(targets);
+            base = items == null ? 0L : items.stream()
+                    .filter(i -> i.getProductId() != null && targetSet.contains(i.getProductId()))
+                    .mapToLong(i -> i.getAmount() == null ? 0L : i.getAmount()).sum();
+        }
+        if (base <= 0) {
+            throw new BizException(ErrorCode.COUPON_NOT_AVAILABLE, "订单不含券适用商品");
+        }
         if (template.getThreshold() != null && template.getThreshold() > 0
-                && orderAmount < template.getThreshold()) {
+                && base < template.getThreshold()) {
             throw new BizException(ErrorCode.COUPON_NOT_AVAILABLE, "未满足券使用门槛");
         }
         if (template.getType() == TYPE_FULL_CUT) {
-            // 满减：优惠=面额，且不超过订单金额（保护极端小额单）
-            return Math.min(template.getAmount(), orderAmount);
+            // 满减：优惠=面额，且不超过计价基数（保护极端小额单）
+            return Math.min(template.getAmount(), base);
         }
-        // 折扣：实付 = 订单金额 × 折扣率（向下取整），优惠 = 差额
-        long payable = BigDecimal.valueOf(orderAmount)
+        // 折扣：基数部分实付 = base × 折扣率（向下取整），优惠 = 差额（≤base≤整单）
+        long payable = BigDecimal.valueOf(base)
                 .multiply(template.getDiscount())
                 .setScale(0, RoundingMode.FLOOR).longValueExact();
-        return orderAmount - payable;
+        return base - payable;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public long useCoupon(Long couponId, Long memberId, Long orderId, long orderAmount) {
-        long discount = calcDiscount(couponId, memberId, orderAmount); // 校验 + 试算
+    public long useCoupon(Long couponId, Long memberId, Long orderId, long orderAmount,
+                          List<CouponScopeItemDTO> items) {
+        long discount = calcDiscount(couponId, memberId, orderAmount, items); // 校验 + 试算
         int rows = mktCouponMapper.update(null, new LambdaUpdateWrapper<MktCoupon>()
                 .set(MktCoupon::getStatus, STATUS_USED)
                 .set(MktCoupon::getUseOrderId, orderId)
@@ -149,6 +186,12 @@ public class MktCouponServiceImpl implements MktCouponService {
     }
 
     // ==================== 私有工具 ====================
+
+    /** 模板范围类型：存在 scope_type=2 行 = 2 指定商品，否则 1 全场 */
+    private int resolveScopeType(Long templateId) {
+        List<Long> targets = mktCouponScopeMapper.selectTargetIds(templateId);
+        return targets == null || targets.isEmpty() ? 1 : SCOPE_PRODUCT;
+    }
 
     private MktCoupon requireCoupon(Long couponId, Long memberId) {
         MktCoupon coupon = mktCouponMapper.selectById(couponId);

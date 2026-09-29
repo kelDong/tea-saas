@@ -41,4 +41,20 @@ export interface CouponTemplateDTO {
   validEnd?: string
   validDays?: number
   status: number
+  /** 适用范围：1全场(默认)/2指定商品 */
+  scopeType?: number
+  /** 指定商品ID列表，scopeType=2 必填非空 */
+  productIds?: number[]
+}
+
+/** 券详情范围节点 */
+export interface ScopeNode {
+  productId: number
+  productName: string
+}
+
+/** 券模板详情（模板字段 + 适用范围，后端 CouponTemplateDetailVO） */
+export interface CouponTemplateDetailVO extends MktCouponTemplate {
+  scopeType: number
+  scope: ScopeNode[]
 }

@@ -5,6 +5,7 @@ import com.teasaas.report.vo.DailySettleVO;
 import com.teasaas.report.vo.DashboardVO;
 import com.teasaas.report.vo.HotProductVO;
 import com.teasaas.report.vo.InventorySummaryVO;
+import com.teasaas.report.vo.MaterialConsumptionVO;
 import com.teasaas.report.vo.StoreRankVO;
 import com.teasaas.report.vo.StoreReportVO;
 
@@ -35,4 +36,11 @@ public interface ReportService {
 
     /** 库存总览（预警优先排序；R2/R5 只读） */
     PageResult<InventorySummaryVO> inventorySummary(int page, int size);
+
+    /**
+     * 原料消耗趋势（F-RPT-03，接口需求 12.3；集采计划）：
+     * days 默认 7≤90（含今日）、limit 默认 10≤50；净消耗口径见 VO。
+     * R4 总部供应链/R2 全部门店（storeId 可空）；R6 名下门店（storeId 必填）。
+     */
+    MaterialConsumptionVO materialConsumption(Integer days, Long storeId, Integer limit);
 }

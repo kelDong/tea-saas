@@ -14,6 +14,7 @@ import com.teasaas.framework.tenant.TenantContext;
 import com.teasaas.inventory.constant.StockBizType;
 import com.teasaas.inventory.dto.StockItemDTO;
 import com.teasaas.inventory.service.InvStockService;
+import com.teasaas.marketing.dto.CouponScopeItemDTO;
 import com.teasaas.marketing.service.MktCouponService;
 import com.teasaas.member.service.MemPointsService;
 import com.teasaas.member.service.MemWalletService;
@@ -235,11 +236,12 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         long total = assembled.stream().mapToLong(AssembledItem::amount).sum();
         vo.setTotalAmount(total);
 
-        // 券优惠（不可用直接抛错，C 端可感知换券）
+        // 券优惠（不可用直接抛错，C 端可感知换券；指定商品券按适用商品小计计价）
         long couponAmount = 0L;
         if (dto.getCouponId() != null) {
             requireMemberForBenefit(memberId, "使用优惠券");
-            couponAmount = mktCouponService.calcDiscount(dto.getCouponId(), memberId, total);
+            couponAmount = mktCouponService.calcDiscount(dto.getCouponId(), memberId, total,
+                    toScopeItems(assembled));
         }
         // 积分抵扣（超限按可抵上限截断，与 appCreate 同规则）
         int pointsUsed = 0;
@@ -271,8 +273,9 @@ public class OrdOrderServiceImpl implements OrdOrderService {
 
         // 优惠试算（核销/扣减在落单后同事务执行，任一失败整单回滚）
         boolean useCoupon = dto.getCouponId() != null;
+        List<CouponScopeItemDTO> scopeItems = toScopeItems(assembled);
         long couponAmount = useCoupon
-                ? mktCouponService.calcDiscount(dto.getCouponId(), memberId, total) : 0L;
+                ? mktCouponService.calcDiscount(dto.getCouponId(), memberId, total, scopeItems) : 0L;
         int pointsUsed = 0;
         long pointsAmount = 0L;
         if (dto.getPointsUsed() != null && dto.getPointsUsed() > 0) {
@@ -302,7 +305,7 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         persistOrderItems(order, assembled);
 
         if (useCoupon) {
-            mktCouponService.useCoupon(dto.getCouponId(), memberId, order.getId(), total);
+            mktCouponService.useCoupon(dto.getCouponId(), memberId, order.getId(), total, scopeItems);
         }
         if (pointsUsed > 0) {
             memPointsService.useForOrder(memberId, order.getOrderNo(), pointsUsed);
@@ -476,6 +479,16 @@ public class OrdOrderServiceImpl implements OrdOrderService {
             oi.setFormulaId(item.formulaId());
             ordOrderItemMapper.insert(oi);
         }
+    }
+
+    /** 券试算商品明细：同 productId 多行合并小计（指定商品券 base 计价依据） */
+    private List<CouponScopeItemDTO> toScopeItems(List<AssembledItem> assembled) {
+        Map<Long, Long> byProduct = new LinkedHashMap<>();
+        for (AssembledItem item : assembled) {
+            byProduct.merge(item.productId(), item.amount(), Long::sum);
+        }
+        return byProduct.entrySet().stream()
+                .map(e -> new CouponScopeItemDTO(e.getKey(), e.getValue())).toList();
     }
 
     /** 下单即扣库存（13.1 条件更新；orderNo 幂等；不足整单回滚） */

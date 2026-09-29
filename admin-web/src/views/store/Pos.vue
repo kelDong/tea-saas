@@ -6,7 +6,7 @@ import { franchiseApi } from '@/api/franchise'
 import { listingApi } from '@/api/product'
 import { posApi } from '@/api/pos'
 import type { ListingVO } from '@/types/product'
-import type { PosOrderCreateVO, PosPayVO } from '@/types/order'
+import type { PosMemberVO, PosOrderCreateVO, PosPayVO } from '@/types/order'
 import { fen2yuan } from '@/utils/format'
 
 const stores = ref<Array<{ id: number; storeName: string }>>([])
@@ -76,19 +76,44 @@ async function submitOrder() {
     currentOrder.value = order
     payChannel.value = 1
     receiveYuan.value = order.payAmount / 100
+    memberId.value = undefined
+    memberOptions.value = []
     payVisible.value = true
   } finally {
     submitLoading.value = false
   }
 }
 
-// ---------- 收款确认（POS 渠道：1现金/2微信Native/3储值未开放） ----------
+// ---------- 收款确认（POS 渠道：1现金/2微信Native/3储值） ----------
 const payVisible = ref(false)
 const payLoading = ref(false)
 const payChannel = ref(1)
 const receiveYuan = ref<number | undefined>(undefined)
 const payResult = ref<PosPayVO | null>(null)
 const resultVisible = ref(false)
+
+// ---------- 会员（储值必选；现金/微信选填，绑会员自动积分） ----------
+const memberId = ref<number | undefined>(undefined)
+const memberOptions = ref<PosMemberVO[]>([])
+const memberLoading = ref(false)
+
+async function searchMembers(keyword: string) {
+  if (!keyword) {
+    memberOptions.value = []
+    return
+  }
+  memberLoading.value = true
+  try {
+    memberOptions.value = (await posApi.members(keyword)).list
+  } finally {
+    memberLoading.value = false
+  }
+}
+
+function memberLabel(m: PosMemberVO): string {
+  const name = m.phone ? `${m.nickname ?? '会员'}(${m.phone})` : (m.nickname ?? '会员')
+  return `${name} 余额¥${fen2yuan(m.balance)}`
+}
 
 const changePreview = computed(() => {
   if (payChannel.value !== 1 || receiveYuan.value == null || !currentOrder.value) return 0
@@ -105,11 +130,16 @@ async function submitPay() {
     ElMessage.warning('实收金额不得小于应收金额')
     return
   }
+  if (payChannel.value === 3 && memberId.value == null) {
+    ElMessage.warning('储值收款请先选择会员')
+    return
+  }
   payLoading.value = true
   try {
     const result = await posApi.pay(currentOrder.value.id, {
       payChannel: payChannel.value,
       receiveAmount: payChannel.value === 1 ? Math.round(receiveYuan.value! * 100) : undefined,
+      memberId: memberId.value,
     })
     payResult.value = result
     payVisible.value = false
@@ -205,8 +235,29 @@ onMounted(async () => {
           <el-radio-group v-model="payChannel">
             <el-radio :value="1">现金</el-radio>
             <el-radio :value="2">微信收款码</el-radio>
-            <el-radio :value="3" disabled>储值</el-radio>
+            <el-radio :value="3">储值</el-radio>
           </el-radio-group>
+        </el-form-item>
+        <el-form-item label="会员">
+          <el-select
+            v-model="memberId"
+            filterable
+            remote
+            clearable
+            reserve-keyword
+            placeholder="昵称/手机号搜索（储值必选）"
+            :remote-method="searchMembers"
+            :loading="memberLoading"
+            class="full"
+          >
+            <el-option
+              v-for="m in memberOptions"
+              :key="m.id"
+              :value="m.id"
+              :label="memberLabel(m)"
+            />
+          </el-select>
+          <span class="tip">{{ payChannel === 3 ? '储值扣款，余额不足将失败' : '选填：绑定会员自动积分' }}</span>
         </el-form-item>
         <el-form-item v-if="payChannel === 1" label="实收金额">
           <el-input-number v-model="receiveYuan" :min="0" :precision="2" :step="1" />

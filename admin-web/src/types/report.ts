@@ -81,3 +81,30 @@ export interface ReportInventoryRow {
   /** 1预警/0正常 */
   warn: number
 }
+
+/** 逐日消耗节点（F-RPT-03） */
+export interface MaterialDailyNode {
+  /** yyyy-MM-dd */
+  date: string
+  /** 当日净消耗 */
+  qty: number
+}
+
+/** 材料消耗节点（期内合计降序） */
+export interface MaterialItemNode {
+  materialId: number
+  materialName: string
+  /** g/kg/个/杯/L */
+  unit: string | null
+  totalQty: number
+  daily: MaterialDailyNode[]
+}
+
+/** 原料消耗趋势（F-RPT-03；净消耗=下单扣−超时回补−退款回补，数量非金额） */
+export interface MaterialConsumptionVO {
+  /** 统计天数（含今日） */
+  days: number
+  /** 空=全部门店 */
+  storeId: number | null
+  items: MaterialItemNode[]
+}

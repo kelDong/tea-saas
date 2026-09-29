@@ -1,7 +1,10 @@
 package com.teasaas.marketing.service;
 
 import com.teasaas.common.result.PageResult;
+import com.teasaas.marketing.dto.CouponScopeItemDTO;
 import com.teasaas.marketing.vo.CouponVO;
+
+import java.util.List;
 
 /**
  * 用户券服务（F-MKT-01，接口需求 11.1；供 tea-order 订单结算联动）
@@ -21,12 +24,17 @@ public interface MktCouponService {
     /**
      * 试算优惠额（订单 preview 联动）：校验券可用（status=1、有效期内、满门槛），
      * 返回优惠金额（分）。不可用抛 COUPON_NOT_AVAILABLE。
+     *
+     * <p>指定商品券口径：门槛与优惠均按"适用商品小计 base"计算（items 中
+     * productId 命中模板范围行的金额之和，未命中商品不计入）；全场券
+     * （无范围行）base=整单金额，行为与一期一致。</p>
      */
-    long calcDiscount(Long couponId, Long memberId, long orderAmount);
+    long calcDiscount(Long couponId, Long memberId, long orderAmount, List<CouponScopeItemDTO> items);
 
     /**
      * 核销（订单 appCreate 联动，同一事务内调用）：先 calcDiscount 校验，
      * 再条件更新 status 1→2 写 use_order_id/use_time；并发已核销抛 COUPON_NOT_AVAILABLE。
      */
-    long useCoupon(Long couponId, Long memberId, Long orderId, long orderAmount);
+    long useCoupon(Long couponId, Long memberId, Long orderId, long orderAmount,
+                   List<CouponScopeItemDTO> items);
 }

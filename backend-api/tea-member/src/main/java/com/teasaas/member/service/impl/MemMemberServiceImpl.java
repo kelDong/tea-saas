@@ -27,6 +27,7 @@ import com.teasaas.member.service.MemMemberService;
 import com.teasaas.member.vo.MemberAssetsVO;
 import com.teasaas.member.vo.MemberVO;
 import com.teasaas.member.vo.PointsConfigVO;
+import com.teasaas.member.vo.PosMemberVO;
 import com.teasaas.member.vo.WxLoginVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * 会员服务实现（F-MEM-01，接口需求 10.1）
@@ -53,6 +55,8 @@ public class MemMemberServiceImpl implements MemMemberService {
     private static final String ROLE_R2 = "R2";
     private static final String ROLE_R5 = "R5";
     private static final String ROLE_R6 = "R6";
+    private static final String ROLE_R7 = "R7";
+    private static final String ROLE_R8 = "R8";
 
     /** 规则默认值（无配置记录时） */
     private static final int DEFAULT_POINTS_PER_YUAN = 1;
@@ -142,6 +146,36 @@ public class MemMemberServiceImpl implements MemMemberService {
                 .orderByDesc(MemMember::getId);
         Page<MemMember> result = memMemberMapper.selectPage(Page.of(page, size), wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    @Override
+    public PageResult<PosMemberVO> searchForPos(String keyword, int page, int size) {
+        requirePosRole();
+        LambdaQueryWrapper<MemMember> wrapper = new LambdaQueryWrapper<MemMember>()
+                .and(keyword != null && !keyword.isBlank(), w -> w
+                        .like(MemMember::getNickname, keyword)
+                        .or()
+                        .like(MemMember::getPhone, keyword))
+                .orderByDesc(MemMember::getId);
+        Page<MemMember> result = memMemberMapper.selectPage(Page.of(page, size), wrapper);
+        List<PosMemberVO> records = result.getRecords().stream().map(m -> {
+            PosMemberVO vo = new PosMemberVO();
+            vo.setId(m.getId());
+            vo.setNickname(m.getNickname());
+            vo.setPhone(m.getPhone());
+            return vo;
+        }).toList();
+        // 页内批量组储值余额（无钱包行=0），供收银员预判可扣
+        if (!records.isEmpty()) {
+            Map<Long, Long> balanceById = memWalletMapper.selectList(
+                            new LambdaQueryWrapper<MemWallet>()
+                                    .in(MemWallet::getMemberId,
+                                            records.stream().map(PosMemberVO::getId).toList()))
+                    .stream().collect(Collectors.toMap(MemWallet::getMemberId,
+                            w -> w.getBalance() == null ? 0L : w.getBalance(), (a, b) -> a));
+            records.forEach(vo -> vo.setBalance(balanceById.getOrDefault(vo.getId(), 0L)));
+        }
+        return PageResult.of(records, result.getTotal(), page, size);
     }
 
     @Override
@@ -277,6 +311,14 @@ public class MemMemberServiceImpl implements MemMemberService {
         List<String> roles = SecurityUtils.getRolesFromSession();
         if (!roles.contains(ROLE_R2) && !roles.contains(ROLE_R5) && !roles.contains(ROLE_R6)) {
             throw new BizException(ErrorCode.FORBIDDEN, "仅总部/运营/加盟商可操作");
+        }
+    }
+
+    /** POS 会员搜索（8.4 储值收款）：R7/R8，对齐 posPay 口径 */
+    private void requirePosRole() {
+        List<String> roles = SecurityUtils.getRolesFromSession();
+        if (!roles.contains(ROLE_R7) && !roles.contains(ROLE_R8)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅店长/店员可操作");
         }
     }
 

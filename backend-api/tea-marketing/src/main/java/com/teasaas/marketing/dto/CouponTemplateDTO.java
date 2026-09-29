@@ -13,6 +13,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 券模板入参（F-MKT-01，接口需求 11.1）
@@ -78,4 +79,12 @@ public class CouponTemplateDTO implements Serializable {
     @Min(1)
     @Max(2)
     private Integer status;
+
+    @Schema(description = "适用范围：1全场（默认）/2指定商品")
+    @Min(1)
+    @Max(2)
+    private Integer scopeType;
+
+    @Schema(description = "指定商品ID列表（scopeType=2 必填非空；PRD F-MKT-01 发放范围）")
+    private List<Long> productIds;
 }
