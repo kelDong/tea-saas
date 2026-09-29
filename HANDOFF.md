@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M10（二期补缺批次A：后台会员资产/流水 + 券模板详情 + 角色菜单授权回显）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M11（二期补缺批次B：指定商品券 + POS 储值收款 + 原料消耗趋势）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+9e9e81a feat(marketing+order+member+payment+report): 二期补缺批次B——指定商品券+POS储值收款+原料消耗趋势 F-MKT-01 F-ORD-04 F-RPT-03
 3a6be01 feat(member+marketing+system): 二期补缺批次A——后台会员资产/流水+券模板详情+角色菜单授权回显 F-MEM-01 F-MKT-01 F-SYS-02
 81385ef feat(order): B端订单取消/退款闭环——新增POST /orders/{id}/cancel（待支付1→6回补库存，R2/R6/R7）+退款按钮前端接线（后端F-PAY-02已有） F-ORD-02 F-PAY-02
 bdf1bdd fix(framework): SaInterceptor显式checkLogin——自定义auth函数会替换默认登录校验，B端接口曾可未登录访问（冒烟发现，修复后401）
@@ -266,6 +267,23 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 会员流水钱包 tab = `mem_recharge_record` 充值记录（一期口径，无消费流水表）；积分 availablePoints 复用 `sumAvailablePoints`（SUM 流水）与 C 端 /me 同口径
 - 接口需求文档升 v1.3（2.3/10.1/11.1 三节补行）
 
+## 2.14 M11 —— ✅ 二期补缺批次B（2026-09-29，commit 9e9e81a）
+
+| 项 | 后端 | 前端 | 接口 |
+|---|---|---|---|
+| 指定商品券 | 模板入参/详情 +`scopeType/productIds`（mkt_coupon_scope 表启用，无 DDL）；calcDiscount/useCoupon 以**适用商品小计 base** 为基数；CouponVO +scopeType | Coupons.vue 范围表单（远程搜商品、编辑经详情回显商品名） | F-MKT-01（11.1） |
+| POS 储值收款 | 新增 `GET /api/v1/pos/members`（R7/R8，{id,nickname,phone,balance} 最小字段集）；`PosPayDTO` +`memberId`；posPay 储值分支 | Pos.vue 储值渠道解禁 + 会员远程搜索选择（余额展示） | F-ORD-04（8.4） |
+| 原料消耗趋势 | `GET /api/v1/reports/material-consumption`（TOP-N 子查询+按日聚合，Service 嵌套化并按合计回排） | Inventory.vue 新「消耗趋势」tab（门店/天数/TOP 工具栏+宽度条+逐日动态列） | F-RPT-03（12.3） |
+
+**要点**：
+- **券口径（行为变更）**：`calcDiscount(couponId, memberId, orderAmount, items)` 签名扩参（编译器兜底全链路改造）；无 scope 行=全场（存量兼容，threshold/优惠对象不变）；指定商品券 base=命中商品 amount 之和，base≤0 抛"订单不含券适用商品"，满减 `min(amount, base)`、折扣 `base−floor(base×discount)`；订单侧 preview L242/appCreate 两处传 `toScopeItems(assembled)`
+- **对账红线（B2 最高危已守住）**：posPay 储值分支**绝不调 reuseOrCreate/markPaymentSuccess、不写 pay_payment**——镜像 C 端 appCreate 储值分支（payForOrder 条件扣款 → 订单 1→2 条件更新 set payChannel=2+balanceAmount → earnOnPaid bizNo=orderNo 幂等）；防双击双扣靠两道条件更新同在 posPay 事务内（钱包 `balance>=amount` + 订单 `.eq(status,PENDING)`）
+- **会员绑定**：posPay 渠道分支前，memberId 非空且订单未绑 → 条件更新 set member_id（`.eq(status,PENDING)` 防并发）；已绑不同会员 → PARAM_ERROR；现金/微信绑定后 markPaymentSuccess 的 earnOnPaid 自动生效
+- **消耗趋势权限**：镜像 storeTrend 先例——R4‖R2 → storeId 可空=全部门店；R6 → requireBoundStore 名下；其余 403（admin-web auth store 角色刷新不持久化，靠后端拦而非前端隐藏）
+- **净消耗口径**：`biz_type IN (1,2,3)` 的 `SUM(-change_qty)`=下单扣−超时回补−退款回补（采购入库4/盘点5 排除）；XML 不显式写 tenant_id（租户插件对子查询同样改写，对齐 ReportMapper.xml 既有风格）
+- **前端防坑**：Coupons `toggleStatus` 改为先拉详情再回传——直接用列表行数据 PUT 会因缺 scopeType 把指定商品券的 scope 清空（saveScope 先全删后插）；Inventory tabs 补 name 属性（原 `name==='warning'` 判断因 pane 无 name 永不命中）
+- 接口需求文档升 v1.4（8.4/11.1/12.3 三节）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -281,13 +299,13 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. **Review 方案 §4 次要项**（`docs/茶饮SaaS-Review修复方案.md` §5/§6）：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试
 3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
 4. 端到端冒烟（回归用）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，种子账号走全链路；权限种子 M8 刚两轮调整，建议顺带回归 R4/R6/R7/R8 按钮可见性
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
