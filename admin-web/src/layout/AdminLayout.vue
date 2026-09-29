@@ -151,12 +151,11 @@ async function handleLogout() {
   border-radius: 4px;
 }
 
-/* 一级目录做成分组标签样式(小号/字距/暗金) */
+/* 一级目录做成分组标签样式(小号/字距/暗金；常规字重——层级感由字号+颜色承担，加粗会与小号冲突) */
 .admin-menu :deep(.el-sub-menu__title) {
   height: 36px;
   padding-top: 10px;
   font-size: 11px;
-  font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--ts-side-text-dim);
 }
