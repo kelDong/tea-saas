@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, TreeInstance } from 'element-plus'
 
 import { franchiseApi } from '@/api/franchise'
-import { sysRoleApi, sysUserApi } from '@/api/system'
-import type { SysRole, SysUserVO } from '@/types/system'
+import { sysMenuApi, sysRoleApi, sysUserApi } from '@/api/system'
+import type { MenuTreeNode, SysRole, SysUserVO } from '@/types/system'
 import type { FraStore } from '@/types/franchise'
 import { formatDateTime } from '@/utils/format'
 
 const USER_TYPE_MAP: Record<number, string> = { 0: '平台', 1: '总部', 2: '加盟商', 3: '门店' }
+const MENU_TYPE_MAP: Record<number, string> = { 1: '目录', 2: '菜单', 3: '按钮' }
 
 // ---------- 用户列表 ----------
 const loading = ref(false)
@@ -132,6 +133,43 @@ async function submitReset() {
   resetVisible.value = false
 }
 
+// ---------- 角色菜单授权（GET /menus/tree + GET/PUT /roles/{id}/menus，二期A 回显） ----------
+// check-strictly 精确绑定（父子不联动）：种子存在"父级授权而子级未授权"（如 R1 有菜单无按钮），
+// 级联勾选往返保存会丢这类授权，故所见即所存。
+const grantVisible = ref(false)
+const grantLoading = ref(false)
+const grantSaving = ref(false)
+const grantTarget = ref<SysRole | null>(null)
+const menuTree = ref<MenuTreeNode[]>([])
+const treeRef = ref<TreeInstance>()
+
+async function openGrant(row: SysRole) {
+  grantTarget.value = row
+  grantVisible.value = true
+  grantLoading.value = true
+  try {
+    const [tree, menuIds] = await Promise.all([sysMenuApi.tree(), sysRoleApi.menuIds(row.id)])
+    menuTree.value = tree
+    await nextTick()
+    treeRef.value?.setCheckedKeys(menuIds)
+  } finally {
+    grantLoading.value = false
+  }
+}
+
+async function submitGrant() {
+  if (!grantTarget.value) return
+  const ids = (treeRef.value?.getCheckedKeys(false) ?? []) as number[]
+  grantSaving.value = true
+  try {
+    await sysRoleApi.grantMenus(grantTarget.value.id, ids)
+    ElMessage.success('菜单授权已保存（全量重绑，相关账号重新登录后生效）')
+    grantVisible.value = false
+  } finally {
+    grantSaving.value = false
+  }
+}
+
 onMounted(() => {
   loadUsers()
   loadOptions()
@@ -207,9 +245,8 @@ onMounted(() => {
 
       <el-tab-pane label="角色">
         <el-card shadow="never">
-          <!-- 菜单授权（PUT /roles/{id}/menus）需先有"角色已绑菜单"回显接口，后端二期补齐后开放 -->
           <el-alert
-            title="角色为平台预置（R1-R8）；菜单授权编辑待后端提供角色已绑菜单回显后开放"
+            title="角色为平台预置（R1-R8），菜单授权为平台级共享数据；勾选为精确绑定（父子不联动），页面权限须同时勾选其下按钮"
             type="info"
             :closable="false"
             class="mb"
@@ -234,6 +271,11 @@ onMounted(() => {
                 <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
                   {{ row.status === 1 ? '启用' : '停用' }}
                 </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openGrant(row)">菜单授权</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -288,6 +330,39 @@ onMounted(() => {
         <el-button type="primary" @click="submitReset">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 角色菜单授权 -->
+    <el-dialog
+      v-model="grantVisible"
+      :title="`菜单授权：${grantTarget?.roleName ?? ''}（${grantTarget?.roleCode ?? ''}）`"
+      width="520px"
+    >
+      <div v-loading="grantLoading">
+        <el-tree
+          ref="treeRef"
+          :data="menuTree"
+          node-key="id"
+          show-checkbox
+          check-strictly
+          default-expand-all
+          :props="{ label: 'menuName', children: 'children' }"
+        >
+          <template #default="{ data }">
+            <span class="tree-node">
+              {{ data.menuName }}
+              <el-tag size="small" :type="data.menuType === 3 ? 'info' : data.menuType === 2 ? 'success' : 'warning'">
+                {{ MENU_TYPE_MAP[data.menuType] ?? data.menuType }}
+              </el-tag>
+              <span v-if="data.perm" class="mono perm">{{ data.perm }}</span>
+            </span>
+          </template>
+        </el-tree>
+      </div>
+      <template #footer>
+        <el-button @click="grantVisible = false">取消</el-button>
+        <el-button type="primary" :loading="grantSaving" @click="submitGrant">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -298,5 +373,16 @@ onMounted(() => {
 
 .mb {
   margin-bottom: 16px;
+}
+
+.tree-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.perm {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>

@@ -5,6 +5,9 @@ import com.teasaas.member.dto.PhoneBindDTO;
 import com.teasaas.member.dto.PointsConfigDTO;
 import com.teasaas.member.dto.WxLoginDTO;
 import com.teasaas.member.entity.MemMember;
+import com.teasaas.member.entity.MemPointsLog;
+import com.teasaas.member.entity.MemRechargeRecord;
+import com.teasaas.member.vo.MemberAssetsVO;
 import com.teasaas.member.vo.MemberVO;
 import com.teasaas.member.vo.PointsConfigVO;
 import com.teasaas.member.vo.WxLoginVO;
@@ -29,6 +32,15 @@ public interface MemMemberService {
 
     /** 会员列表（B 端，R2/R5/R6；keyword 匹配昵称/手机号） */
     PageResult<MemMember> page(int page, int size, String keyword);
+
+    /** 会员资产汇总（B 端 10.1 二期，R2/R5/R6：余额/累计充值消费/可用累计积分） */
+    MemberAssetsVO assets(Long memberId);
+
+    /** 会员积分流水（B 端 10.1 二期，R2/R5/R6） */
+    PageResult<MemPointsLog> pagePointsLogs(Long memberId, int page, int size);
+
+    /** 会员储值充值记录（B 端 10.1 二期，R2/R5/R6；一期钱包流水=充值记录） */
+    PageResult<MemRechargeRecord> pageWalletLogs(Long memberId, int page, int size);
 
     /** 积分/储值规则配置查询（R2/R5；无记录返回默认值） */
     PointsConfigVO getPointsConfig();

@@ -47,6 +47,12 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
     }
 
     @Override
+    public MktCouponTemplate detail(Long id) {
+        requireViewRole();
+        return requireTemplate(id);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public MktCouponTemplate create(CouponTemplateDTO dto) {
         requireEditRole();

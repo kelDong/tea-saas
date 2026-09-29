@@ -47,6 +47,21 @@ export interface SysRole {
   status: number
 }
 
+/** 菜单树节点（GET /menus/tree 全量树，二期A 角色授权勾选用；MenuTreeVO 直出） */
+export interface MenuTreeNode {
+  id: number
+  parentId: number
+  menuName: string
+  /** 1目录/2菜单/3按钮 */
+  menuType: number
+  path: string | null
+  component: string | null
+  /** 按钮权限码（如 bom:edit） */
+  perm: string | null
+  sort: number
+  children: MenuTreeNode[]
+}
+
 /** 操作日志（SysOperationLog 实体直出） */
 export interface SysOperationLog {
   id: number

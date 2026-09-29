@@ -40,6 +40,13 @@ public class CouponTemplateController {
         return Result.success(mktCouponTemplateService.page(page, size, status));
     }
 
+    @Operation(summary = "券模板详情（编辑回填）")
+    @GetMapping("/{id}")
+    public Result<MktCouponTemplate> detail(
+            @Parameter(description = "模板ID") @PathVariable("id") Long id) {
+        return Result.success(mktCouponTemplateService.detail(id));
+    }
+
     @Operation(summary = "创建券模板")
     @PostMapping
     public Result<MktCouponTemplate> create(@RequestBody @Validated CouponTemplateDTO dto) {

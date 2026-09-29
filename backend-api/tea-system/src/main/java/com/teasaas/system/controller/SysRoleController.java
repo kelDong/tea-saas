@@ -33,6 +33,12 @@ public class SysRoleController {
         return Result.success(sysRoleService.list());
     }
 
+    @Operation(summary = "角色已绑菜单 ID（授权回显）")
+    @GetMapping("/{id}/menus")
+    public Result<List<Long>> menuIds(@PathVariable("id") Long roleId) {
+        return Result.success(sysRoleService.listMenuIds(roleId));
+    }
+
     @OpLog(module = "system", action = "角色菜单授权")
     @Operation(summary = "更新角色菜单授权（全量重绑）")
     @PutMapping("/{id}/menus")

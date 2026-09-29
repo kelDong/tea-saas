@@ -15,6 +15,9 @@ public interface MktCouponTemplateService {
     /** 列表（R2/R5/R6；status 过滤可选） */
     PageResult<MktCouponTemplate> page(int page, int size, Integer status);
 
+    /** 详情（R2/R5/R6；编辑回填用） */
+    MktCouponTemplate detail(Long id);
+
     /** 创建（R2/R5） */
     MktCouponTemplate create(CouponTemplateDTO dto);
 

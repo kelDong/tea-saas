@@ -15,13 +15,16 @@ import com.teasaas.member.entity.MemMember;
 import com.teasaas.member.entity.MemMemberConfig;
 import com.teasaas.member.entity.MemMemberLevel;
 import com.teasaas.member.entity.MemPointsLog;
+import com.teasaas.member.entity.MemRechargeRecord;
 import com.teasaas.member.entity.MemWallet;
 import com.teasaas.member.mapper.MemMemberConfigMapper;
 import com.teasaas.member.mapper.MemMemberLevelMapper;
 import com.teasaas.member.mapper.MemMemberMapper;
 import com.teasaas.member.mapper.MemPointsLogMapper;
+import com.teasaas.member.mapper.MemRechargeRecordMapper;
 import com.teasaas.member.mapper.MemWalletMapper;
 import com.teasaas.member.service.MemMemberService;
+import com.teasaas.member.vo.MemberAssetsVO;
 import com.teasaas.member.vo.MemberVO;
 import com.teasaas.member.vo.PointsConfigVO;
 import com.teasaas.member.vo.WxLoginVO;
@@ -60,6 +63,7 @@ public class MemMemberServiceImpl implements MemMemberService {
     private final MemMemberLevelMapper memMemberLevelMapper;
     private final MemMemberConfigMapper memMemberConfigMapper;
     private final MemPointsLogMapper memPointsLogMapper;
+    private final MemRechargeRecordMapper memRechargeRecordMapper;
     private final MemWalletMapper memWalletMapper;
 
     @Override
@@ -137,6 +141,43 @@ public class MemMemberServiceImpl implements MemMemberService {
                         .like(MemMember::getPhone, keyword))
                 .orderByDesc(MemMember::getId);
         Page<MemMember> result = memMemberMapper.selectPage(Page.of(page, size), wrapper);
+        return PageResult.of(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    @Override
+    public MemberAssetsVO assets(Long memberId) {
+        requireManageRole();
+        MemMember member = requireMember(memberId);
+        MemberAssetsVO vo = new MemberAssetsVO();
+        MemWallet wallet = memWalletMapper.selectOne(new LambdaQueryWrapper<MemWallet>()
+                .eq(MemWallet::getMemberId, memberId));
+        vo.setBalance(wallet == null || wallet.getBalance() == null ? 0L : wallet.getBalance());
+        vo.setTotalRecharge(wallet == null || wallet.getTotalRecharge() == null ? 0L : wallet.getTotalRecharge());
+        vo.setTotalConsume(wallet == null || wallet.getTotalConsume() == null ? 0L : wallet.getTotalConsume());
+        vo.setAvailablePoints(sumAvailablePoints(memberId));
+        vo.setTotalPoints(member.getTotalPoints() == null ? 0 : member.getTotalPoints());
+        return vo;
+    }
+
+    @Override
+    public PageResult<MemPointsLog> pagePointsLogs(Long memberId, int page, int size) {
+        requireManageRole();
+        requireMember(memberId);
+        Page<MemPointsLog> result = memPointsLogMapper.selectPage(Page.of(page, size),
+                new LambdaQueryWrapper<MemPointsLog>()
+                        .eq(MemPointsLog::getMemberId, memberId)
+                        .orderByDesc(MemPointsLog::getId));
+        return PageResult.of(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    @Override
+    public PageResult<MemRechargeRecord> pageWalletLogs(Long memberId, int page, int size) {
+        requireManageRole();
+        requireMember(memberId);
+        Page<MemRechargeRecord> result = memRechargeRecordMapper.selectPage(Page.of(page, size),
+                new LambdaQueryWrapper<MemRechargeRecord>()
+                        .eq(MemRechargeRecord::getMemberId, memberId)
+                        .orderByDesc(MemRechargeRecord::getId));
         return PageResult.of(result.getRecords(), result.getTotal(), page, size);
     }
 

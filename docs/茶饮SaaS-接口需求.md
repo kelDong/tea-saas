@@ -1,8 +1,9 @@
 # 茶饮 SaaS 系统 · 接口需求文档
 
-> 版本：v1.2 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
+> 版本：v1.3 ｜ 关联文档：`茶饮SaaS-PRD.md`（v1.1）、`茶饮SaaS-数据库设计.md`（v1.1）、`茶饮SaaS-工程开发规范.md`（v1.1）｜ 状态：已评审
 > 本文档是**前后端契约**：每个接口对应 PRD 功能编号（F-XXX），标注权限角色、入参出参、MVP 优先级。后端 Controller 与前端 API 层以此为准开发。
 >
+> **v1.3 变更**：二期补缺批次A——后台会员资产/流水（10.1）、券模板详情（11.1）、角色菜单授权回显+全量菜单树（2.3）。
 > **v1.2 变更**：补 B 端取消订单接口（8.2，`POST /api/v1/orders/{id}/cancel`，对齐 PRD 5.3 R6/R7 取消按钮）。
 > **v1.1 变更**：C 端接口会话化（Review §2）——wx-login 签发会员 token，`/api/app/v1/**` 除公开接口外统一 `Authorization: Bearer` 鉴权，废弃裸 `X-Member-Id` 头传递（兼容期一个迭代，详见 1.1）。
 
@@ -119,6 +120,8 @@
 | 绑定门店 | PUT | `/api/v1/users/{id}/stores` | R2 | MVP |
 | 角色列表 | GET | `/api/v1/roles` | R2 | MVP |
 | 角色 CRUD + 菜单授权 | POST/PUT | `/api/v1/roles` | R2 | MVP |
+| 角色菜单授权回显 | GET | `/api/v1/roles/{id}/menus` | R2 | 二期A |
+| 全量菜单树（授权勾选） | GET | `/api/v1/menus/tree` | R2 | 二期A |
 
 **用户入参**：`{username, nickname, phone, roleIds[], storeIds[], status}`；出参含 `dataScope`（数据范围）。
 
@@ -386,6 +389,8 @@
 | 会员信息 | GET | `/api/app/v1/members/me` | C 端会员 | MVP |
 | 绑定手机号 | PUT | `/api/app/v1/members/me/phone` | C 端会员 | MVP |
 | 会员列表（后台） | GET | `/api/v1/members` | R2/R5(全)/R6(名下) | MVP |
+| 会员资产汇总（后台） | GET | `/api/v1/members/{id}/assets` | R2/R5/R6 | 二期A |
+| 会员流水（后台） | GET | `/api/v1/members/{id}/logs?type=points\|wallet` | R2/R5/R6 | 二期A |
 
 ### 10.2 积分（F-MEM-02）
 
@@ -413,6 +418,7 @@
 | 接口 | 方法 | URL | 角色 | 优先级 |
 |---|---|---|---|---|
 | 券模板列表 | GET | `/api/v1/coupon-templates` | R2/R5/R6(本店) | MVP |
+| 券模板详情 | GET | `/api/v1/coupon-templates/{id}` | R2/R5/R6 | 二期A |
 | 创建券模板 | POST | `/api/v1/coupon-templates` | R2/R5 | MVP |
 | 编辑/停用 | PUT/PATCH | `/api/v1/coupon-templates/{id}` | R2/R5 | MVP |
 | 领券（C 端） | POST | `/api/app/v1/coupons/{templateId}/claim` | C 端会员 | MVP |

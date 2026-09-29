@@ -90,20 +90,22 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row: MktCouponTemplate) {
-  editing.value = row
+/** 编辑回填：按 id 拉详情（二期A 前列表行内数据回填改为真详情，防止列表字段不全） */
+async function openEdit(row: MktCouponTemplate) {
+  const detail = await couponApi.detail(row.id)
+  editing.value = detail
   Object.assign(form, {
-    name: row.name,
-    type: row.type,
-    thresholdYuan: row.threshold ? row.threshold / 100 : undefined,
-    amountYuan: row.amount ? row.amount / 100 : undefined,
-    discount: row.discount ?? undefined,
-    totalQty: row.totalQty,
-    perLimit: row.perLimit,
-    validType: row.validType,
-    range: row.validStart && row.validEnd ? [row.validStart, row.validEnd] : [],
-    validDays: row.validDays ?? undefined,
-    status: row.status,
+    name: detail.name,
+    type: detail.type,
+    thresholdYuan: detail.threshold ? detail.threshold / 100 : undefined,
+    amountYuan: detail.amount ? detail.amount / 100 : undefined,
+    discount: detail.discount ?? undefined,
+    totalQty: detail.totalQty,
+    perLimit: detail.perLimit,
+    validType: detail.validType,
+    range: detail.validStart && detail.validEnd ? [detail.validStart, detail.validEnd] : [],
+    validDays: detail.validDays ?? undefined,
+    status: detail.status,
   })
   dialogVisible.value = true
 }
