@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M9（B 端订单取消/退款闭环 + SaInterceptor 登录校验修复）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M10（二期补缺批次A：后台会员资产/流水 + 券模板详情 + 角色菜单授权回显）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+3a6be01 feat(member+marketing+system): 二期补缺批次A——后台会员资产/流水+券模板详情+角色菜单授权回显 F-MEM-01 F-MKT-01 F-SYS-02
 81385ef feat(order): B端订单取消/退款闭环——新增POST /orders/{id}/cancel（待支付1→6回补库存，R2/R6/R7）+退款按钮前端接线（后端F-PAY-02已有） F-ORD-02 F-PAY-02
 bdf1bdd fix(framework): SaInterceptor显式checkLogin——自定义auth函数会替换默认登录校验，B端接口曾可未登录访问（冒烟发现，修复后401）
 af57518 docs(handoff): 进度快照更新至M8——视觉收敛收官(23/23页)+权限种子两轮对齐PRD 5.2/5.3
@@ -250,6 +251,21 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 前端：biz/Orders（品牌侧）与 store/Orders（门店侧）退款/取消按钮接线，api/order.ts + types/order.ts 补 cancel/refund
 - 接口需求文档升 v1.2：8.2 节补门店取消行（权限 R2 全/R6/R7 名下门店）
 
+## 2.13 M10 —— ✅ 二期补缺批次A（2026-09-29，commit 3a6be01）
+
+| 项 | 后端 | 前端 | 接口 |
+|---|---|---|---|
+| 后台会员资产/流水 | `GET /api/v1/members/{id}/assets`（余额/累计充值消费/可用积分）+ `/{id}/logs?type=points\|wallet`（积分明细/充值记录，R2/R5/R6 requireManageRole） | Members.vue 资产 drawer（descriptions + 双 tab 流水分页） | F-MEM-01（10.1） |
+| 券模板详情 | `GET /api/v1/coupon-templates/{id}`（requireViewRole） | Coupons.vue openEdit 改真详情回填 | F-MKT-01（11.1） |
+| 角色菜单授权回显 | 新增 `GET /api/v1/menus/tree`（SysMenuController/Service/Impl 全量树含按钮）+ `GET /api/v1/roles/{id}/menus`（已绑 ID 回显） | Users.vue 角色页授权弹窗（el-tree check-strictly 精确绑定） | F-SYS-02（2.3） |
+
+**要点**：
+- **SysRoleServiceImpl 补 R2 守卫**：list/grantMenus 原先无权限校验，现统一 `requireR2()`；sys_role_menu 写 `tenant_id=0`（平台共享表语义，对齐种子，替代原会话租户写入——种子本就 tenant_id=0，写会话租户会导致其他品牌查不到授权）
+- **SysMenuServiceImpl 独立组树**：授权树口径（含按钮 menuType=3 叶子、不过滤 status/visible）≠ 登录菜单树（AuthServiceImpl.MenusAssembler：按钮归权限码不进树）——**不复用 MenusAssembler** 避免登录菜单回归；MenuTreeVO.children 已初始化空列表
+- **前端 check-strictly（父子不联动）是刻意的**：种子存在"父级授权而子级未授权"（R1 有菜单无按钮），级联勾选往返保存会丢授权，所见即所存；保存提示重新登录生效
+- 会员流水钱包 tab = `mem_recharge_record` 充值记录（一期口径，无消费流水表）；积分 availablePoints 复用 `sumAvailablePoints`（SUM 流水）与 C 端 /me 同口径
+- 接口需求文档升 v1.3（2.3/10.1/11.1 三节补行）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -265,13 +281,13 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：后台会员余额/流水查询接口、券模板 GET /{id}、角色-菜单授权回显接口、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、mkt_coupon_scope 指定商品券、POS 储值收款会员身份入参、F-RPT-03 报表导出、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. **Review 方案 §4 次要项**（`docs/茶饮SaaS-Review修复方案.md` §5/§6）：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试
 3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
 4. 端到端冒烟（回归用）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，种子账号走全链路；权限种子 M8 刚两轮调整，建议顺带回归 R4/R6/R7/R8 按钮可见性
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
