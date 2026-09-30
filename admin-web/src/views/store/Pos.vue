@@ -112,7 +112,7 @@ async function searchMembers(keyword: string) {
 
 function memberLabel(m: PosMemberVO): string {
   const name = m.phone ? `${m.nickname ?? '会员'}(${m.phone})` : (m.nickname ?? '会员')
-  return `${name} 余额¥${fen2yuan(m.balance)}`
+  return `${name} 余额${fen2yuan(m.balance)}`
 }
 
 const changePreview = computed(() => {

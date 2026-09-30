@@ -63,8 +63,8 @@ public class CouponTemplateDetailVO implements Serializable {
     @Schema(description = "适用范围：1全场/2指定商品")
     private Integer scopeType;
 
-    @Schema(description = "指定商品列表（scopeType=2 时非空）")
-    private List<ScopeNode> products = new ArrayList<>();
+    @Schema(description = "指定商品列表（scopeType=2 时非空；契约字段名 scope，见接口需求 11.1）")
+    private List<ScopeNode> scope = new ArrayList<>();
 
     /**
      * 范围商品节点（商品已删除时 productName 为空，前端显示占位）

@@ -71,10 +71,10 @@ public class MktCouponTemplateServiceImpl implements MktCouponTemplateService {
         vo.setValidEnd(template.getValidEnd());
         vo.setValidDays(template.getValidDays());
         vo.setStatus(template.getStatus());
-        List<CouponTemplateDetailVO.ScopeNode> products =
+        List<CouponTemplateDetailVO.ScopeNode> scopeNodes =
                 mktCouponScopeMapper.selectScopeWithProduct(id);
-        vo.setScopeType(products.isEmpty() ? SCOPE_ALL : SCOPE_PRODUCT);
-        vo.setProducts(products);
+        vo.setScopeType(scopeNodes.isEmpty() ? SCOPE_ALL : SCOPE_PRODUCT);
+        vo.setScope(scopeNodes);
         return vo;
     }
 
