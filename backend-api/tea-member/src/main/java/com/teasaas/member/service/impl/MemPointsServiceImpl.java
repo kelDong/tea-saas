@@ -72,12 +72,16 @@ public class MemPointsServiceImpl implements MemPointsService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void useForOrder(Long memberId, String orderNo, int points) {
-        if (points <= 0 || alreadyLogged(orderNo, BIZ_USE)) {
+        if (points <= 0) {
+            return;
+        }
+        // 悲观锁串行化（Review §3.3 方案 A，时序修正）：锁必须先于本事务任何一致性读——
+        // RR 隔离下读视图在首条普通 SELECT 建立，若 alreadyLogged 先执行，锁等待后
+        // sumPoints 仍沿用旧快照读不到并发方已提交的扣减，双单可双双通过把 SUM 刷负（集成测试暴露）
+        memMemberMapper.lockById(memberId);
+        if (alreadyLogged(orderNo, BIZ_USE)) {
             return; // 幂等
         }
-        // 悲观锁串行化（Review §3.3 方案 A）：SUM(流水) 先查后写在并发双单下可双双通过刷负，
-        // 锁会员行后第二笔等第一笔提交才读到最新 SUM
-        memMemberMapper.lockById(memberId);
         int before = sumPoints(memberId);
         if (before < points) {
             throw new BizException(ErrorCode.POINTS_NOT_ENOUGH);
@@ -151,10 +155,10 @@ public class MemPointsServiceImpl implements MemPointsService {
         return total == null ? 0 : ((Number) total).intValue();
     }
 
-    /** 累计获得 SQL 自增（total_points = total_points + N，防读改写竞态） */
+    /** 累计获得 SQL 自增（total_points = total_points + N，防读改写竞态；{0} 占位对齐 InvStock 风格） */
     private void accumulateTotal(Long memberId, int earned) {
         memMemberMapper.update(null, new LambdaUpdateWrapper<MemMember>()
-                .setSql("total_points = IFNULL(total_points, 0) + " + earned)
+                .setSql("total_points = IFNULL(total_points, 0) + {0}", earned)
                 .eq(MemMember::getId, memberId));
     }
 

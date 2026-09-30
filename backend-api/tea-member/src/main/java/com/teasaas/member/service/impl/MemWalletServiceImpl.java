@@ -88,8 +88,8 @@ public class MemWalletServiceImpl implements MemWalletService {
     public void payForOrder(Long memberId, String orderNo, long amount) {
         // 条件更新 balance>=amount 防超扣；幂等由调用方保证（见接口注释）
         int rows = memWalletMapper.update(null, new LambdaUpdateWrapper<MemWallet>()
-                .setSql("balance = balance - " + amount)
-                .setSql("total_consume = IFNULL(total_consume, 0) + " + amount)
+                .setSql("balance = balance - {0}", amount)
+                .setSql("total_consume = IFNULL(total_consume, 0) + {0}", amount)
                 .eq(MemWallet::getMemberId, memberId)
                 .ge(MemWallet::getBalance, amount));
         if (rows == 0) {
@@ -106,16 +106,21 @@ public class MemWalletServiceImpl implements MemWalletService {
 
     // ==================== 私有工具 ====================
 
-    /** 余额 SQL 自增：delta 入 balance，consumeDelta 联动累计消费（可为负=退款回冲），rechargeDelta 联动累计充值 */
+    /**
+     * 余额 SQL 自增：delta 入 balance，consumeDelta 联动累计消费（可为负=退款回冲），rechargeDelta 联动累计充值。
+     * 返回值 = 更新后回读的真实余额（Review §4-3：读改写近似值在并发充值下会漂移，
+     * 回读保证充值流水 balance_after 与库内一致；本事务持有行锁期间他人无法插入中间值）。
+     */
     private long addBalance(Long memberId, long delta, long consumeDelta, long rechargeDelta) {
         MemWallet wallet = getOrCreateWallet(memberId);
         memWalletMapper.update(null, new LambdaUpdateWrapper<MemWallet>()
-                .setSql("balance = IFNULL(balance, 0) + " + delta)
-                .setSql("total_consume = IFNULL(total_consume, 0) + " + consumeDelta)
-                .setSql("total_recharge = IFNULL(total_recharge, 0) + " + rechargeDelta)
+                .setSql("balance = IFNULL(balance, 0) + {0}", delta)
+                .setSql("total_consume = IFNULL(total_consume, 0) + {0}", consumeDelta)
+                .setSql("total_recharge = IFNULL(total_recharge, 0) + {0}", rechargeDelta)
                 .set(MemWallet::getUpdateTime, LocalDateTime.now())
                 .eq(MemWallet::getId, wallet.getId()));
-        return (wallet.getBalance() == null ? 0L : wallet.getBalance()) + delta;
+        MemWallet fresh = memWalletMapper.selectById(wallet.getId());
+        return fresh == null || fresh.getBalance() == null ? 0L : fresh.getBalance();
     }
 
     private MemWallet getOrCreateWallet(Long memberId) {
@@ -134,9 +139,12 @@ public class MemWalletServiceImpl implements MemWalletService {
         try {
             memWalletMapper.insert(wallet);
         } catch (DuplicateKeyException e) {
-            // uk_wallet_member 并发开卡兜底：重查
-            wallet = memWalletMapper.selectOne(new LambdaQueryWrapper<MemWallet>()
-                    .eq(MemWallet::getMemberId, memberId));
+            // uk_wallet 并发开卡兜底：FOR UPDATE 当前读重查（普通 selectOne 沿用事务旧快照
+            // 看不到并发方刚提交的行，见 MemWalletMapper.lockByMemberId 注释）
+            wallet = memWalletMapper.lockByMemberId(memberId);
+            if (wallet == null) {
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "储值账户创建冲突，请重试");
+            }
         }
         return wallet;
     }

@@ -82,6 +82,9 @@ public class PayPaymentServiceImpl implements PayPaymentService {
 
     private static final DateTimeFormatter NO_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    /** 单号撞号重试上限（Review §4-1） */
+    private static final int NO_RETRY_MAX = 3;
+
     private final PayPaymentMapper payPaymentMapper;
     private final PayCallbackTaskMapper payCallbackTaskMapper;
     private final OrdOrderMapper ordOrderMapper;
@@ -271,12 +274,17 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         } catch (Exception e) {
             task.setPayload("{}");
         }
-        try {
-            payCallbackTaskMapper.insert(task);
-        } catch (DuplicateKeyException e) {
-            // uk_cbtask_no 撞号重生成一次
-            task.setTaskNo(genNo("CB"));
-            payCallbackTaskMapper.insert(task);
+        // uk_cbtask_no 撞号重试（Review §4-1：6位随机撞号概率低但非零，上限3次防极端单日高频）
+        for (int attempt = 1; ; attempt++) {
+            try {
+                payCallbackTaskMapper.insert(task);
+                break;
+            } catch (DuplicateKeyException e) {
+                if (attempt >= NO_RETRY_MAX) {
+                    throw new BizException(ErrorCode.SYSTEM_ERROR, "回调任务单号生成冲突，请重试");
+                }
+                task.setTaskNo(genNo("CB"));
+            }
         }
 
         try {
@@ -430,11 +438,17 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         payment.setAmount(order.getPayAmount());
         payment.setStatus(PAY_STATUS_PENDING);
         payment.setCreateTime(LocalDateTime.now());
-        try {
-            payPaymentMapper.insert(payment);
-        } catch (DuplicateKeyException e) {
-            payment.setPaymentNo(genNo("PAY"));
-            payPaymentMapper.insert(payment);
+        // uk_payment_no 撞号重试（Review §4-1，上限3次）
+        for (int attempt = 1; ; attempt++) {
+            try {
+                payPaymentMapper.insert(payment);
+                break;
+            } catch (DuplicateKeyException e) {
+                if (attempt >= NO_RETRY_MAX) {
+                    throw new BizException(ErrorCode.SYSTEM_ERROR, "支付单号生成冲突，请重试");
+                }
+                payment.setPaymentNo(genNo("PAY"));
+            }
         }
         return payment;
     }
