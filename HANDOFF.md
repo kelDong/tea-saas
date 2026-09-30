@@ -1,11 +1,14 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M11（二期补缺批次B：指定商品券 + POS 储值收款 + 原料消耗趋势）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M12（N1 质量收尾：Review §4 次要四项 + 资金链路并发集成测试 19 例 + R4/R6/R7/R8 按钮可见性与 M9~M11 端到端回归）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+247a32f fix(payment+member+job): Review§4次要四项+集成测试暴露两处并发真缺陷——genNo撞号重试上限3/setSql{0}占位/balance_after回读真实值/tea.job.enabled开关；钱包并发开卡FOR UPDATE兜底(RR旧快照误判不存在致静默失败)+积分扣减锁先于一致性读(双单刷负SUM)；新增资金链路并发集成测试19例(库存/积分/钱包/券/回调) F-PAY-01 F-MEM-02 F-MEM-03 F-INV-02
+290d87f fix(marketing+admin-web): 券详情出参字段名对齐契约 scope——products≠§11.1 契约名致编辑回显空+启停模板误清适用范围；POS 会员下拉标签去重复¥（fen2yuan 已含货币符） F-MKT-01 F-ORD-04
+a500da3 docs(handoff): 进度快照更新至M11——二期补缺批次B三项入档（指定商品券+POS储值收款+原料消耗趋势），backlog划线收口并勘误"F-RPT-03导出"错记
 9e9e81a feat(marketing+order+member+payment+report): 二期补缺批次B——指定商品券+POS储值收款+原料消耗趋势 F-MKT-01 F-ORD-04 F-RPT-03
 3a6be01 feat(member+marketing+system): 二期补缺批次A——后台会员资产/流水+券模板详情+角色菜单授权回显 F-MEM-01 F-MKT-01 F-SYS-02
 81385ef feat(order): B端订单取消/退款闭环——新增POST /orders/{id}/cancel（待支付1→6回补库存，R2/R6/R7）+退款按钮前端接线（后端F-PAY-02已有） F-ORD-02 F-PAY-02
@@ -284,6 +287,28 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - **前端防坑**：Coupons `toggleStatus` 改为先拉详情再回传——直接用列表行数据 PUT 会因缺 scopeType 把指定商品券的 scope 清空（saveScope 先全删后插）；Inventory tabs 补 name 属性（原 `name==='warning'` 判断因 pane 无 name 永不命中）
 - 接口需求文档升 v1.4（8.4/11.1/12.3 三节）
 
+## 2.15 M12 —— ✅ N1 质量收尾（2026-09-30，commit 247a32f）
+
+**Review §4 次要四项全部落地 + 集成测试暴露两处并发真缺陷（当场修复）**：
+
+| 项 | 落点 |
+|---|---|
+| genNo 撞号重试 | PayPaymentServiceImpl 两处 try-once 改循环（PAY/CB 前缀，上限 3 次后 BizException） |
+| setSql `{0}` 占位 | MemWalletServiceImpl 三处 + MemPointsServiceImpl.accumulateTotal 对齐 InvStock 风格 |
+| balance_after 回读 | addBalance 更新后 `selectById` 回读真实值（读改写近似值并发下会漂移） |
+| tea.job.enabled 开关 | JobConfig `@ConditionalOnProperty`（测试默认关闭防调度干扰） |
+| **真缺陷 A** | getOrCreateWallet DuplicateKey 兜底 `selectOne` 沿用 RR 旧快照看不到并发方刚提交的行→NPE 静默失败；改 `MemWalletMapper.lockByMemberId`（FOR UPDATE 当前读）+ null 守卫 |
+| **真缺陷 B** | useForOrder 悲观锁在 `alreadyLogged` 快照读**之后**，锁等待后 sumPoints 仍用旧读视图→并发双单可双双通过刷负 SUM；时序修正为锁先于任何一致性读 |
+
+**资金链路并发集成测试（tea-server/src/test，19 例全绿）**：`IntegrationTestBase`（独立测试库 `tea_saas_test` 每轮从 01_schema.sql 重建；CyclicBarrier 并发工具；死锁感知断言口径"落地量=成功笔数×单笔"）+ 库存/积分/钱包/券/回调 5 类用例。运行：`mvn -pl tea-server -am test`（需本机 Docker tea-mysql/tea-redis）。
+
+**防坑**：
+- pre-commit 红线5 门禁**含测试文件**——测试类用 `@TestConstructor(autowireMode=ALL)`（标在基类，@Inherited）+ 构造器注入，禁 @Autowired
+- 并发同 uk 插入的 InnoDB 死锁牺牲者=整单回滚可重试，**非数据损坏**——断言按成功笔数口径，勿按线程数
+- biz_no/order_no 列 VARCHAR(32)：随机串取 12 位（全量 UUID 会超长截断报 Data too long）
+
+**回归冒烟（2026-09-30 全过）**：R4/R6/R7/R8 按钮种子库内矩阵 + R6/R7 `/auth/menus` 端到端 + R7 接单收银/R6 订单查询 UI 按钮渲染均对齐 PRD 口径；M9 取消（待支付→6+库存 3 笔精确回补）/退款（订单 7+钱包 ±1800 精确回冲）；M10/M11 券编辑回显适用商品、启停双向不清 scope、POS 储值收款（钱包 6900→5100）、会员下拉标签单 ¥、原料消耗趋势页数据正常。
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -300,12 +325,12 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 ## 4. 接手后的建议顺序
 
 1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
-2. **Review 方案 §4 次要项**（`docs/茶饮SaaS-Review修复方案.md` §5/§6）：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试
+2. ~~**Review 方案 §4 次要项**~~（M12 247a32f 收口：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试 19 例——测试暴露的钱包 RR 快照与积分锁时序两缺陷已当场修复）
 3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
-4. 端到端冒烟（回归用）：`cd admin-web && npm run dev`（proxy → localhost:8080）+ 后端起 tea-server，种子账号走全链路；权限种子 M8 刚两轮调整，建议顺带回归 R4/R6/R7/R8 按钮可见性
+4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）
 
 ## 5. 权威文档索引（冲突时以此为准）
 

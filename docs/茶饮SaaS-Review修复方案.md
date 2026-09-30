@@ -152,10 +152,10 @@ ALTER TABLE mem_points_log
 
 | # | 位置 | 问题 | 建议 |
 |---|---|---|---|
-| 1 | `PayPaymentServiceImpl.genNo:429` | 6位随机日容量90万，撞号仅重试一次 | 重试循环（上限3次）或换雪花低位 |
-| 2 | `MemWalletServiceImpl.payForOrder:91` | `setSql("... - " + amount)` 拼接 | 改 `{0}` 占位对齐 InvStock 风格（无注入风险，纯风格） |
-| 3 | `MemWalletServiceImpl.addBalance:118` | balanceAfter 读改写近似值 | 充值流水 balance_after 改 update 后回读，或标注"近似值" |
-| 4 | 全后端 | 零测试覆盖 | 资金链路（库存/钱包/积分/券核销/回调）补并发幂等集成测试，优先于单测 |
+| 1 | `PayPaymentServiceImpl.genNo:429` | ~~6位随机日容量90万，撞号仅重试一次~~ | ✅ 已修（M12 247a32f：两处改重试循环上限3次） |
+| 2 | `MemWalletServiceImpl.payForOrder:91` | ~~`setSql("... - " + amount)` 拼接~~ | ✅ 已修（M12 247a32f：钱包三处+积分累计共四处改 `{0}` 占位） |
+| 3 | `MemWalletServiceImpl.addBalance:118` | ~~balanceAfter 读改写近似值~~ | ✅ 已修（M12 247a32f：update 后 selectById 回读真实值） |
+| 4 | 全后端 | ~~零测试覆盖~~ | ✅ 已补（M12 247a32f：tea-server/src/test 资金链路并发幂等集成测试 19 例——并暴露修复钱包 RR 快照兜底、积分扣减锁时序两处真缺陷） |
 
 ---
 
