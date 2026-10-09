@@ -42,6 +42,11 @@
 5. 输出摘要：📋 审查通过 | 红线 8/8 ✓ 多租户 ✓ | commit: <hash> <msg> | 飞书: <已同步/未同步>
 ```
 
+## 会话记忆（.harness/memory/）
+
+- **会话开始**：读 `.harness/memory/` 最近 2~3 份记录 + `HANDOFF.md` 恢复上下文（目录规则见 `.harness/memory/README.md`）
+- **会话结束**：按 `.harness/memory/_TEMPLATE.md` 新增 `YYYY-MM-DD-<主题>.md` 一份（做了什么/决策/提交/遗留），纯文档小改动也不例外
+
 ## 环境注意事项（本机实测）
 
 - **Maven 本地仓库在 `E:\工具\apache-maven-3.9.9\maven-repository`**（中文路径）
