@@ -10,6 +10,7 @@ import com.teasaas.product.dto.PriceAdjustDTO;
 import com.teasaas.product.dto.SellableCheckDTO;
 import com.teasaas.product.entity.PrdProduct;
 import com.teasaas.product.service.PrdListingService;
+import com.teasaas.product.vo.AppCategoryVO;
 import com.teasaas.product.vo.AppProductVO;
 import com.teasaas.product.vo.ListingVO;
 import com.teasaas.product.vo.SellableCheckVO;
@@ -109,5 +110,22 @@ public class PrdListingController {
         }
         TenantContext.setTenantId(tenantId);
         return Result.success(prdListingService.appStoreProducts(id, category));
+    }
+
+    /**
+     * C 端公开接口（白名单，同上：多租户红线唯一例外声明，读 X-Tenant-Id 手动注入，
+     * 查询仍由租户插件自动拼 tenant_id 隔离，请求结束 TenantCleanupInterceptor 清理）。
+     */
+    @Operation(summary = "门店商品分类（C 端公开，仅该店有可售商品的分类，F-APP-02）")
+    @GetMapping("/api/app/v1/stores/{id}/categories")
+    public Result<List<AppCategoryVO>> appStoreCategories(
+            @RequestHeader(value = TENANT_HEADER, required = false)
+            @Parameter(description = "品牌标识（租户 ID），必填") Long tenantId,
+            @PathVariable("id") Long id) {
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "缺少品牌标识");
+        }
+        TenantContext.setTenantId(tenantId);
+        return Result.success(prdListingService.appStoreCategories(id));
     }
 }

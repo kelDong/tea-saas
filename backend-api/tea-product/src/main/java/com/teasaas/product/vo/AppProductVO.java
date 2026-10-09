@@ -27,6 +27,9 @@ public class AppProductVO implements Serializable {
     @Schema(description = "分类ID")
     private Long categoryId;
 
+    @Schema(description = "分类名称")
+    private String categoryName;
+
     @Schema(description = "本店售价（分）")
     private Integer salePrice;
 

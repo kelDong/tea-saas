@@ -8,7 +8,9 @@ import com.teasaas.order.dto.AppOrderPreviewDTO;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.service.OrdOrderService;
 import com.teasaas.order.vo.OrderCreateVO;
+import com.teasaas.order.vo.OrderDetailVO;
 import com.teasaas.order.vo.OrderPreviewVO;
+import com.teasaas.order.vo.ReorderVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -64,5 +66,17 @@ public class AppOrderController {
     public Result<Void> cancel(@PathVariable("id") Long id) {
         ordOrderService.appCancel(id, MemberContext.getMemberId());
         return Result.success();
+    }
+
+    @Operation(summary = "订单详情（仅本人，含明细）")
+    @GetMapping("/{id}")
+    public Result<OrderDetailVO> detail(@PathVariable("id") Long id) {
+        return Result.success(ordOrderService.appDetail(id, MemberContext.getMemberId()));
+    }
+
+    @Operation(summary = "再来一单（按明细重建购物车，已下架/缺货项跳过）")
+    @PostMapping("/{id}/reorder")
+    public Result<ReorderVO> reorder(@PathVariable("id") Long id) {
+        return Result.success(ordOrderService.appReorder(id, MemberContext.getMemberId()));
     }
 }

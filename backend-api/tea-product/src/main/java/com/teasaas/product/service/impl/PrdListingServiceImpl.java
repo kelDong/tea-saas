@@ -18,6 +18,7 @@ import com.teasaas.product.mapper.PrdProductMapper;
 import com.teasaas.product.mapper.PrdProductSpecMapper;
 import com.teasaas.product.mapper.PrdProductSpecOptionMapper;
 import com.teasaas.product.service.PrdListingService;
+import com.teasaas.product.vo.AppCategoryVO;
 import com.teasaas.product.vo.AppProductVO;
 import com.teasaas.product.vo.ListingVO;
 import com.teasaas.product.vo.ProductDetailVO;
@@ -207,6 +208,16 @@ public class PrdListingServiceImpl implements PrdListingService {
             products.forEach(p -> p.setSpecs(specMap.getOrDefault(p.getProductId(), List.of())));
         }
         return products;
+    }
+
+    @Override
+    public List<AppCategoryVO> appStoreCategories(Long storeId) {
+        // C 端公开：TenantContext 已由 Controller 从 X-Tenant-Id 注入，租户插件隔离
+        FraStore store = fraStoreMapper.selectById(storeId);
+        if (store == null) {
+            throw new BizException(ErrorCode.STORE_NOT_FOUND);
+        }
+        return prdListingMapper.selectAppCategories(storeId);
     }
 
     // ==================== 私有工具 ====================

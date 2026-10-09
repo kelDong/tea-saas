@@ -64,7 +64,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/app/v1/auth/wx-login",
                         "/api/app/v1/stores/nearby",
-                        "/api/app/v1/stores/*/products");
+                        "/api/app/v1/stores/*/products",
+                        "/api/app/v1/stores/*/categories");
 
         // ThreadLocal 清理（防止线程复用串租户——多租户红线）
         registry.addInterceptor(new TenantCleanupInterceptor())

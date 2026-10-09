@@ -8,6 +8,7 @@ import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.vo.OrderCreateVO;
 import com.teasaas.order.vo.OrderDetailVO;
 import com.teasaas.order.vo.OrderPreviewVO;
+import com.teasaas.order.vo.ReorderVO;
 
 /**
  * 订单服务（F-ORD-01~04，接口需求 8.1-8.4）
@@ -57,6 +58,12 @@ public interface OrdOrderService {
 
     /** C 端取消（仅本人待支付单），回补库存（bizType=2）+积分（bizType=3），券不退还 */
     void appCancel(Long orderId, Long memberId);
+
+    /** C 端订单详情（仅本人，含明细） */
+    OrderDetailVO appDetail(Long orderId, Long memberId);
+
+    /** C 端再来一单（仅本人）：按明细重建购物车项，已下架/缺货项拆入 skipped */
+    ReorderVO appReorder(Long orderId, Long memberId);
 
     // ==================== POS（会话，R7/R8） ====================
 

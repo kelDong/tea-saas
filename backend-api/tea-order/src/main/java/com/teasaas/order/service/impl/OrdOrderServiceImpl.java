@@ -30,6 +30,7 @@ import com.teasaas.order.service.OrdOrderService;
 import com.teasaas.order.vo.OrderCreateVO;
 import com.teasaas.order.vo.OrderDetailVO;
 import com.teasaas.order.vo.OrderPreviewVO;
+import com.teasaas.order.vo.ReorderVO;
 import com.teasaas.product.entity.PrdListing;
 import com.teasaas.product.entity.PrdProduct;
 import com.teasaas.product.entity.PrdProductSpec;
@@ -38,6 +39,7 @@ import com.teasaas.product.mapper.PrdListingMapper;
 import com.teasaas.product.mapper.PrdProductMapper;
 import com.teasaas.product.mapper.PrdProductSpecMapper;
 import com.teasaas.product.mapper.PrdProductSpecOptionMapper;
+import com.teasaas.product.vo.ShortageRowVO;
 import com.teasaas.system.entity.SysUserStore;
 import com.teasaas.system.entity.Tenant;
 import com.teasaas.system.mapper.SysUserStoreMapper;
@@ -147,6 +149,11 @@ public class OrdOrderServiceImpl implements OrdOrderService {
     public OrderDetailVO detail(Long id) {
         OrdOrder order = requireExists(id);
         checkOrderReadAccess(order);
+        return buildDetail(order);
+    }
+
+    /** 明细组装（B 端 detail / C 端 appDetail 共用） */
+    private OrderDetailVO buildDetail(OrdOrder order) {
         OrderDetailVO vo = new OrderDetailVO();
         vo.setId(order.getId());
         vo.setOrderNo(order.getOrderNo());
@@ -165,7 +172,7 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         vo.setRemark(order.getRemark());
         vo.setCreateTime(order.getCreateTime());
         vo.setItems(ordOrderItemMapper.selectList(
-                        new LambdaQueryWrapper<OrdOrderItem>().eq(OrdOrderItem::getOrderId, id))
+                        new LambdaQueryWrapper<OrdOrderItem>().eq(OrdOrderItem::getOrderId, order.getId()))
                 .stream().map(item -> {
                     OrderDetailVO.OrderItemNode node = new OrderDetailVO.OrderItemNode();
                     node.setProductId(item.getProductId());
@@ -367,6 +374,69 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         }
         restoreOrderStock(orderId, StockBizType.TIMEOUT_RESTORE);
         refundPointsQuietly(order); // 积分回补（bizNo=orderNo 幂等）；券不退还（PRD 一期）
+    }
+
+    @Override
+    public OrderDetailVO appDetail(Long orderId, Long memberId) {
+        OrdOrder order = requireExists(orderId);
+        requireOwner(order, memberId);
+        return buildDetail(order);
+    }
+
+    @Override
+    public ReorderVO appReorder(Long orderId, Long memberId) {
+        OrdOrder order = requireExists(orderId);
+        requireOwner(order, memberId);
+        List<OrdOrderItem> items = ordOrderItemMapper.selectList(
+                new LambdaQueryWrapper<OrdOrderItem>().eq(OrdOrderItem::getOrderId, orderId));
+
+        // 当前上架/发布状态批量校验 + 缺货批量校验（复用可售 SQL，缺料的 listingId 集合）
+        List<Long> listingIds = items.stream().map(OrdOrderItem::getListingId).distinct().toList();
+        Map<Long, PrdListing> listingMap = prdListingMapper.selectBatchIds(listingIds)
+                .stream().collect(Collectors.toMap(PrdListing::getId, Function.identity()));
+        Map<Long, PrdProduct> productMap = listingMap.isEmpty() ? Map.of()
+                : prdProductMapper.selectBatchIds(
+                        listingMap.values().stream().map(PrdListing::getProductId).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(PrdProduct::getId, Function.identity()));
+        Set<Long> shortageIds = listingIds.isEmpty() ? Set.of()
+                : prdListingMapper.selectShortages(listingIds).stream()
+                        .map(ShortageRowVO::getListingId).collect(Collectors.toSet());
+
+        List<ReorderVO.ReorderItem> okItems = new ArrayList<>();
+        List<ReorderVO.ReorderItem> skipped = new ArrayList<>();
+        for (OrdOrderItem item : items) {
+            ReorderVO.ReorderItem node = new ReorderVO.ReorderItem();
+            node.setProductId(item.getProductId());
+            node.setListingId(item.getListingId());
+            node.setProductName(item.getProductName());
+            node.setSpecDesc(item.getSpecDesc());
+            node.setQty(item.getQty());
+            PrdListing listing = listingMap.get(item.getListingId());
+            PrdProduct product = listing == null ? null : productMap.get(listing.getProductId());
+            if (listing == null || listing.getStatus() == null || listing.getStatus() != 1
+                    || product == null || product.getPublishStatus() == null || product.getPublishStatus() != 1) {
+                node.setSkipReason("已下架");
+                skipped.add(node);
+            } else if (shortageIds.contains(item.getListingId())) {
+                node.setSkipReason("缺货");
+                skipped.add(node);
+            } else {
+                node.setSalePrice(listing.getSalePrice());
+                okItems.add(node);
+            }
+        }
+        ReorderVO vo = new ReorderVO();
+        vo.setStoreId(order.getStoreId());
+        vo.setItems(okItems);
+        vo.setSkipped(skipped);
+        return vo;
+    }
+
+    /** C 端归属校验（多租户红线：按 id 操作必须校验归属，同 appCancel 口径） */
+    private void requireOwner(OrdOrder order, Long memberId) {
+        if (!Objects.equals(order.getMemberId(), memberId)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "非本人订单");
+        }
     }
 
     // ==================== POS 手工收银（F-ORD-04，R7/R8） ====================

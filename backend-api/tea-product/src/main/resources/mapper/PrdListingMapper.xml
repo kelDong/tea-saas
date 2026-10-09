@@ -61,15 +61,17 @@
 
     <!-- C 端门店可售商品（仅上架+已发布+原料充足，F-PRD-03） -->
     <select id="selectAppProducts" resultType="com.teasaas.product.vo.AppProductVO">
-        SELECT p.id           AS productId,
-               l.id           AS listingId,
-               p.product_name AS productName,
-               p.category_id  AS categoryId,
-               l.sale_price   AS salePrice,
-               p.image        AS image,
-               p.description  AS description
+        SELECT p.id            AS productId,
+               l.id            AS listingId,
+               p.product_name  AS productName,
+               p.category_id   AS categoryId,
+               c.category_name AS categoryName,
+               l.sale_price    AS salePrice,
+               p.image         AS image,
+               p.description   AS description
           FROM prd_listing l
           JOIN prd_product p ON p.id = l.product_id
+          LEFT JOIN prd_category c ON c.id = p.category_id
          WHERE l.store_id = #{storeId}
            AND l.status = 1
            AND p.publish_status = 1
@@ -78,5 +80,18 @@
         </if>
            AND NOT <include refid="shortageExists"/>
          ORDER BY l.sort, l.id
+    </select>
+
+    <!-- C 端门店商品分类（该店有上架已发布商品的分类去重，F-APP-02） -->
+    <select id="selectAppCategories" resultType="com.teasaas.product.vo.AppCategoryVO">
+        SELECT DISTINCT c.id            AS id,
+                        c.category_name AS name
+          FROM prd_listing l
+          JOIN prd_product p ON p.id = l.product_id
+          JOIN prd_category c ON c.id = p.category_id
+         WHERE l.store_id = #{storeId}
+           AND l.status = 1
+           AND p.publish_status = 1
+         ORDER BY c.sort, c.id
     </select>
 </mapper>

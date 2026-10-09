@@ -2,6 +2,7 @@ package com.teasaas.product.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.teasaas.product.entity.PrdListing;
+import com.teasaas.product.vo.AppCategoryVO;
 import com.teasaas.product.vo.AppProductVO;
 import com.teasaas.product.vo.ListingVO;
 import com.teasaas.product.vo.ShortageRowVO;
@@ -26,4 +27,7 @@ public interface PrdListingMapper extends BaseMapper<PrdListing> {
 
     /** C 端门店可售商品（仅上架+已发布+原料充足） */
     List<AppProductVO> selectAppProducts(@Param("storeId") Long storeId, @Param("categoryId") Long categoryId);
+
+    /** C 端门店商品分类（该店有上架已发布商品的分类去重，按 sort 排序） */
+    List<AppCategoryVO> selectAppCategories(@Param("storeId") Long storeId);
 }

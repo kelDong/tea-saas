@@ -3,6 +3,7 @@ package com.teasaas.product.service;
 import com.teasaas.common.result.PageResult;
 import com.teasaas.product.dto.ListingCreateDTO;
 import com.teasaas.product.entity.PrdProduct;
+import com.teasaas.product.vo.AppCategoryVO;
 import com.teasaas.product.vo.AppProductVO;
 import com.teasaas.product.vo.ListingVO;
 import com.teasaas.product.vo.SellableCheckVO;
@@ -34,4 +35,7 @@ public interface PrdListingService {
 
     /** C 端门店可售商品列表（公开；仅返回库存充足商品） */
     List<AppProductVO> appStoreProducts(Long storeId, Long categoryId);
+
+    /** C 端门店商品分类（公开；仅返回该店有可售商品的分类，按 sort 排序） */
+    List<AppCategoryVO> appStoreCategories(Long storeId);
 }
