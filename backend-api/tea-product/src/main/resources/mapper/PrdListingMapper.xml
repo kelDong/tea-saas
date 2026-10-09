@@ -82,16 +82,18 @@
          ORDER BY l.sort, l.id
     </select>
 
-    <!-- C 端门店商品分类（该店有上架已发布商品的分类去重，F-APP-02） -->
+    <!-- C 端门店商品分类（该店有上架已发布商品的分类去重，F-APP-02）
+         注意：MySQL 严格模式 DISTINCT 要求 ORDER BY 列入 SELECT（错误 3065），故 GROUP BY 等价去重 -->
     <select id="selectAppCategories" resultType="com.teasaas.product.vo.AppCategoryVO">
-        SELECT DISTINCT c.id            AS id,
-                        c.category_name AS name
+        SELECT c.id            AS id,
+               c.category_name AS name
           FROM prd_listing l
           JOIN prd_product p ON p.id = l.product_id
           JOIN prd_category c ON c.id = p.category_id
          WHERE l.store_id = #{storeId}
            AND l.status = 1
            AND p.publish_status = 1
+         GROUP BY c.id, c.category_name, c.sort
          ORDER BY c.sort, c.id
     </select>
 </mapper>
