@@ -1,0 +1,26 @@
+{
+  "pages": [
+    {
+      "path": "pages/store-select/store-select",
+      "style": { "navigationBarTitleText": "选择门店" }
+    },
+    {
+      "path": "pages/menu/menu",
+      "style": { "navigationBarTitleText": "点单" }
+    },
+    {
+      "path": "pages/checkout/checkout",
+      "style": { "navigationBarTitleText": "确认订单" }
+    },
+    {
+      "path": "pages/pay-result/pay-result",
+      "style": { "navigationBarTitleText": "收银台" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "山茶制造",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#FAF6EE"
+  }
+}
