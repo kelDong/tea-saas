@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M12（N1 质量收尾：Review §4 次要四项 + 资金链路并发集成测试 19 例 + R4/R6/R7/R8 按钮可见性与 M9~M11 端到端回归）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M13（C 端接口补缺：订单详情/再来一单/门店商品分类，接口需求 §13 契约全量对齐）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+2a6794a feat(order+product+framework): C端接口补缺——订单详情/再来一单/门店商品分类，§13契约全量对齐；appDetail复用buildDetail+requireOwner本人校验，reorder按明细重建购物车(下架/缺货批量校验拆skipped)，categories公开白名单+AppProductVO补categoryName F-APP-02 F-APP-03
 247a32f fix(payment+member+job): Review§4次要四项+集成测试暴露两处并发真缺陷——genNo撞号重试上限3/setSql{0}占位/balance_after回读真实值/tea.job.enabled开关；钱包并发开卡FOR UPDATE兜底(RR旧快照误判不存在致静默失败)+积分扣减锁先于一致性读(双单刷负SUM)；新增资金链路并发集成测试19例(库存/积分/钱包/券/回调) F-PAY-01 F-MEM-02 F-MEM-03 F-INV-02
 290d87f fix(marketing+admin-web): 券详情出参字段名对齐契约 scope——products≠§11.1 契约名致编辑回显空+启停模板误清适用范围；POS 会员下拉标签去重复¥（fen2yuan 已含货币符） F-MKT-01 F-ORD-04
 a500da3 docs(handoff): 进度快照更新至M11——二期补缺批次B三项入档（指定商品券+POS储值收款+原料消耗趋势），backlog划线收口并勘误"F-RPT-03导出"错记
@@ -309,6 +310,22 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 **回归冒烟（2026-09-30 全过）**：R4/R6/R7/R8 按钮种子库内矩阵 + R6/R7 `/auth/menus` 端到端 + R7 接单收银/R6 订单查询 UI 按钮渲染均对齐 PRD 口径；M9 取消（待支付→6+库存 3 笔精确回补）/退款（订单 7+钱包 ±1800 精确回冲）；M10/M11 券编辑回显适用商品、启停双向不清 scope、POS 储值收款（钱包 6900→5100）、会员下拉标签单 ¥、原料消耗趋势页数据正常。
 
+## 2.16 M13 —— ✅ C 端接口补缺（2026-10-09，commit 2a6794a）
+
+**接口需求 §13（F-APP-01~03）契约全量对齐**——补齐此前缺失的三个 C 端接口：
+
+| 接口 | 编号 | 落点 |
+|---|---|---|
+| `GET /api/app/v1/stores/{id}/categories` 门店商品分类 | F-APP-02 | `appStoreCategories`（公开白名单，X-Tenant-Id 注入同 products 惯例）；`selectAppCategories` 仅返回该店有上架+已发布商品的分类（JOIN 去重，按 c.sort）；`AppProductVO` 顺带补 `categoryName`（LEFT JOIN prd_category，插件改写 join 隔离） |
+| `GET /api/app/v1/orders/{id}` 订单详情 | F-APP-03 | `appDetail`：`requireOwner`（仅本人，多租户归属校验同 appCancel 口径）；B 端 detail 抽 `buildDetail` 共用组装 |
+| `POST /api/app/v1/orders/{id}/reorder` 再来一单 | F-APP-03 | `appReorder`：按 ord_order_item 明细重建购物车项；上架/发布状态批量校验 + `selectShortages` 缺货批量校验，不可购项拆入 `skipped`（skipReason=已下架/缺货），可购项带当前本店售价 |
+
+**要点**：
+- **ReorderVO 设计**：ord_order_item 仅存 specDesc 快照（specOptionIds 不持久化），可加购项由小程序跳规格弹层重选规格后入车——VO javadoc 已注明
+- reorder 只读不扣库存（入车才走既有 appCreate 幂等内核）；selectBatchIds/插件改写均走会话租户
+- SaTokenConfig AppMemberInterceptor 白名单补 `/api/app/v1/stores/*/categories`
+- 飞书无匹配任务未同步；`mvn -q clean compile` 通过（增量编译残留会假报 tea-supply Lombok 符号缺失，clean 即消）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -330,7 +347,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
