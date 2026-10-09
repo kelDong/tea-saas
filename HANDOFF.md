@@ -326,6 +326,22 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - SaTokenConfig AppMemberInterceptor 白名单补 `/api/app/v1/stores/*/categories`
 - 飞书无匹配任务未同步；`mvn -q clean compile` 通过（增量编译残留会假报 tea-supply Lombok 符号缺失，clean 即消）
 
+## 2.17 M14 —— ✅ mini-program C 端小程序初始化（2026-10-09，commits 44d6465 + 74293b9）
+
+**PRD §6.2 全 7 页两批次落库**——uni-app CLI（vite 5.2.8 锁定 + TS + pinia 2.3.1）复刻 `prototype/customer-app.html` 暖茶调原型，零组件库：
+
+| 批次 | 内容 | 编号 |
+|---|---|---|
+| 1（44d6465） | 骨架（request 层 Bearer+X-Tenant-Id 注入、Result 解包、401 单飞重登 wx.login）+ 选店（nearby/营业判定含跨零点/切店清车确认）+ 点单（左分类右商品流/规格弹层加价/同规格合并/CartBar+Drawer）+ 结算（preview 驱动四行金额/券门槛过滤/积分开关/payChannel 本页选定）+ 收银台（wx-jsapi→mock 回调直连→轮询取餐码） | F-APP-01 F-APP-02 F-ORD-01 F-PAY-01 |
+| 2（74293b9） | 订单列表（状态 tab 本地过滤+触底翻页，裸 OrdOrder 卡片降级）/ 详情（steps/取餐码/继续支付/取消回补）/ 再来一单（skipped 提示+pendingReorder 队列逐项弹规格重选）/ 会员中心（渐变头+资产三格/券包三态/积分明细/固定档储值 mock 即时到账/绑手机号/模板ID领券调试入口）；tabBar 三 tab（纯文字） | F-APP-03 F-MEM-01~03 F-MKT-01 |
+
+**要点**：
+- 分批提交策略：批次1 pages.json 裁至 4 页无 tabBar（store-select 为入口，reLaunch 回首页），批次2 恢复 7 页+tabBar 并切回 switchTab——两 commit 树均可独立构建
+- 契约口径已核对落码：PageResult={list,total,page,size}；雪花 ID 序列化为 string（types/api.ts 全 string）；订单列表无 status 入参返裸实体；payChannel 是下单 DTO 字段；RechargeDTO 仅 amount(分)
+- 构建：`npm run build:mp-weixin` 全绿（仅 sass legacy-js-api 弃用噪音）；devtools 导入 `dist/build/mp-weixin`，须勾「详情→本地设置→不校验合法域名」
+- 遗留：真实支付（config.useMockPay=false）后端 paySign 未实现，真机联调前需补；tabBar 无图标资源（一期纯文字）
+- 飞书无匹配任务未同步（23 个已同步任务均 M2~M5 期）
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -338,16 +354,17 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 8. **前端 npm 陷阱**：`npm install --prefix` 会解析到父目录，必须 `cd admin-web` 后执行；Node v24 / npm 11 / npmmirror
 9. **代码生成器**：`java -cp tea-generator/target/classes com.teasaas.generator.CodeGenerator --ddl=sql/init/01_schema.sql --out=. --tables=prd_*,inv_*`（先 `mvn -pl tea-generator -am package -DskipTests` 或复用已编译 classes；跳过已存在文件）
 10. **SaInterceptor 自定义 auth 函数会替换默认登录校验**（bdf1bdd 教训，曾致 B 端未登录裸奔）：必须显式 `StpUtil.checkLogin()`；C 端 `/api/app/**` 走 AppMemberInterceptor 自行校验（Bearer 为主，双头 X-Tenant-Id/X-Member-Id 兼容期内 WARN 放行）
+11. **mini-program 工程陷阱**：`computed/ref/watch` 必须从 `'vue'` 导入（`@dcloudio/uni-app` 只导出 onLoad/onShow 等生命周期，导错 build 直接报 not exported）；组件平铺在 `components/X.vue` **不匹配 easycom 默认规则**（要求 `components/x/x.vue` 目录式），页面必须显式 `import X from '@/components/X.vue'`，否则 **build 不报错但运行时不渲染**（M14 EmptyState 踩坑，用 dist 里 page.json 的 usingComponents 核对）；pinia 安装需 `--legacy-peer-deps`；vite 锁 5 勿升 6（vite-plugin-uni 不兼容 6）；小程序端不认 `<small>` 标签选择器
 
 ## 4. 接手后的建议顺序
 
 1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. ~~**Review 方案 §4 次要项**~~（M12 247a32f 收口：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试 19 例——测试暴露的钱包 RR 快照与积分锁时序两缺陷已当场修复）
-3. mini-program / store-terminal 两端仓库仍未初始化（CLAUDE.md 已注）；C 端会话化 Bearer token 已就绪（M5 R3），小程序可直接对接
+3. ~~mini-program 初始化~~（M14 两批次收口，devtools 联调口径见 §2.17；后端 mock 支付/公开接口免鉴权配置均已打通）；store-terminal 仍未初始化（依赖 WebSocket /ws/orders，无契约定义）
 4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
