@@ -42,7 +42,7 @@ async function loadMenu() {
   const storeId = cart.storeId ?? shop.selected?.id;
   if (!storeId) {
     uni.showToast({ title: '请先选择门店', icon: 'none' });
-    setTimeout(() => uni.reLaunch({ url: '/pages/store-select/store-select' }), 600);
+    setTimeout(() => uni.switchTab({ url: '/pages/store-select/store-select' }), 600);
     return;
   }
   loading.value = true;

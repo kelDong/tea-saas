@@ -8,6 +8,7 @@
 
 import { onLoad } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { couponApi, orderApi } from '@/api';
 import { useCartStore } from '@/stores/cart';
 import { useMemberStore } from '@/stores/member';

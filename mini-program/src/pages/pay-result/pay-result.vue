@@ -66,7 +66,7 @@ function goDetail() {
 }
 
 function goHome() {
-  uni.reLaunch({ url: '/pages/store-select/store-select' });
+  uni.switchTab({ url: '/pages/store-select/store-select' });
 }
 
 let orderId = '';

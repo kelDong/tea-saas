@@ -8,6 +8,7 @@
 
 import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { useShopStore } from '@/stores/shop';
 import { useCartStore } from '@/stores/cart';
 import { formatDistance } from '@/utils/format';

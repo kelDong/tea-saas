@@ -15,8 +15,31 @@
     {
       "path": "pages/pay-result/pay-result",
       "style": { "navigationBarTitleText": "收银台" }
+    },
+    {
+      "path": "pages/order-list/order-list",
+      "style": { "navigationBarTitleText": "我的订单" }
+    },
+    {
+      "path": "pages/order-detail/order-detail",
+      "style": { "navigationBarTitleText": "订单详情" }
+    },
+    {
+      "path": "pages/member/member",
+      "style": { "navigationBarTitleText": "我的" }
     }
   ],
+  "tabBar": {
+    "color": "#8A7A66",
+    "selectedColor": "#B85F1C",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/store-select/store-select", "text": "点单" },
+      { "pagePath": "pages/order-list/order-list", "text": "订单" },
+      { "pagePath": "pages/member/member", "text": "我的" }
+    ]
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "山茶制造",
