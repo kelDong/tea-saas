@@ -2,7 +2,8 @@
  * C 端 API（接口需求 §10/§11/§13，全部 /api/app/v1）
  */
 
-import { http } from '@/utils/request';
+import { BizError, http } from '@/utils/request';
+import { config } from '@/config';
 import type {
   AppCategoryVO,
   AppOrderCreateDTO,
@@ -51,13 +52,28 @@ export const orderApi = {
 
 export const payApi = {
   wxJsapi: (orderId: string) => http<PaymentVO>('POST', '/api/app/v1/payments/wx-jsapi', { orderId }),
-  /** mock 支付闭环（tea.pay.mock=true 期间，DEV）：直连回调免鉴权接口模拟网关确认 */
+  /**
+   * mock 支付闭环（tea.pay.mock=true 期间，DEV）：直连回调免鉴权接口模拟网关确认。
+   * 注意：回调接口按微信网关协议回纯文本 SUCCESS（text/plain），不走 Result 解包，
+   * 必须裸 uni.request 按 HTTP 2xx 判成功——经 http() 解包会把 "SUCCESS" 判为
+   * BizError 抛出，导致收银台轮询不启动（冒烟发现）。
+   */
   mockCallback: (paymentNo: string, amount: number) =>
-    http<string>('POST', '/api/notify/wx-pay/callback', {
-      paymentNo,
-      transactionId: `MOCK${paymentNo}`,
-      resultCode: 'SUCCESS',
-      amount,
+    new Promise<string>((resolve, reject) => {
+      uni.request({
+        url: config.baseUrl + '/api/notify/wx-pay/callback',
+        method: 'POST',
+        data: { paymentNo, transactionId: `MOCK${paymentNo}`, resultCode: 'SUCCESS', amount },
+        header: { 'Content-Type': 'application/json', 'X-Tenant-Id': String(config.tenantId) },
+        success: (res) => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(String(res.data ?? ''));
+          } else {
+            reject(new BizError(res.statusCode, `回调失败(${res.statusCode})`));
+          }
+        },
+        fail: (err) => reject(new BizError(-1, err.errMsg || '网络异常')),
+      });
     }),
 };
 
