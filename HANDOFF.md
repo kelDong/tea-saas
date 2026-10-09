@@ -1,11 +1,15 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M13（C 端接口补缺：订单详情/再来一单/门店商品分类，接口需求 §13 契约全量对齐）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M15（mini-program × 后端全链路冒烟回归：mock 支付回调真缺陷修复）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+411a0ae fix(mini-program): mock支付回调改裸uni.request——后端按微信网关协议回纯文本SUCCESS(text/plain)，经http()的Result解包会判BizError，收银台toast请求失败(200)且轮询永不启动；改按HTTP 2xx判成功 F-PAY-01
+10d4f62 docs(harness): 会话记忆补录——分类接口补丁提交记录 f994974
+f994974 fix(framework+product): C端分类接口两处补丁——categories漏登SaInterceptor白名单会401；selectAppCategories改GROUP BY规避MySQL 3065 F-APP-02
+5c8b45f docs(harness): 新建会话记忆目录memory——README规则+模板+首份记录，CLAUDE.md接入会话开始/结束流程
 2a6794a feat(order+product+framework): C端接口补缺——订单详情/再来一单/门店商品分类，§13契约全量对齐；appDetail复用buildDetail+requireOwner本人校验，reorder按明细重建购物车(下架/缺货批量校验拆skipped)，categories公开白名单+AppProductVO补categoryName F-APP-02 F-APP-03
 247a32f fix(payment+member+job): Review§4次要四项+集成测试暴露两处并发真缺陷——genNo撞号重试上限3/setSql{0}占位/balance_after回读真实值/tea.job.enabled开关；钱包并发开卡FOR UPDATE兜底(RR旧快照误判不存在致静默失败)+积分扣减锁先于一致性读(双单刷负SUM)；新增资金链路并发集成测试19例(库存/积分/钱包/券/回调) F-PAY-01 F-MEM-02 F-MEM-03 F-INV-02
 290d87f fix(marketing+admin-web): 券详情出参字段名对齐契约 scope——products≠§11.1 契约名致编辑回显空+启停模板误清适用范围；POS 会员下拉标签去重复¥（fen2yuan 已含货币符） F-MKT-01 F-ORD-04
@@ -342,6 +346,30 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 遗留：真实支付（config.useMockPay=false）后端 paySign 未实现，真机联调前需补；tabBar 无图标资源（一期纯文字）
 - 飞书无匹配任务未同步（23 个已同步任务均 M2~M5 期）
 
+## 2.18 M15 —— ✅ mini-program × 后端全链路冒烟回归（2026-10-09，commit 411a0ae）
+
+**C 端 HTTP 全链路回归全过**（Python 脚本直打后端，模拟小程序请求序列；环境：Docker tea-mysql/tea-redis + 本地 jar）：
+
+| 环节 | 结果 |
+|---|---|
+| 公开接口 nearby / **categories（无 token 200，f994974 白名单+GROUP BY 两修复实证）** / products | ✓ |
+| wx-login（Bearer 签发）→ preview 试算 → 下单 → wx-jsapi → mock 回调 → 订单 1→2 | ✓ |
+| 取消：新单→cancel→状态 6（cancelReason=顾客取消） | ✓ |
+| reorder：重建购物车 qty/现价正确、无 skipped；无 token 访问详情 401 | ✓ |
+| 会员：/me（积分 259→275 实时累计）→ wallet → points 明细 → recharge 5000 即时到账 → 充值记录 | ✓ |
+| 券：门槛不满足正确拒绝（"未满足券使用门槛"）；满 3000 减 500 试算 3200→2700；储值+券单即时支付、券 1→2 核销、钱包 8500-2700=5800 精确扣款 | ✓ |
+| 积分：超限截断（99999→可用上限 275）；下单抵扣 3200-100=3100 + 回调支付成功；账目全平（275-100+31+27=233） | ✓ |
+| 领券 per_limit=1 拒绝（90101，存量数据已领） | ✓ |
+
+**发现并修复 1 个 M14 漏网真缺陷**（411a0ae）：
+- `payApi.mockCallback` 原走 `http()` 的 Result 解包，但回调接口按微信网关协议回**纯文本 SUCCESS（text/plain）**——`body.code===0` 判 false → BizError → 收银台 toast"请求失败(200)"且 **pollStatus 永不启动**；改裸 `uni.request` 按 HTTP 2xx 判成功。M14 只验证了 build 未做运行时点穿，冒烟即穿
+- `npm run build:mp-weixin` 全绿
+
+**口径确认（非缺陷，勿再误报）**：
+- `OrderDetailVO` 无 `balanceAmount/couponAmount/pointsUsed` 字段是**契约口径**（§8.2 同定义，前端类型一致），不是漏传
+- `/actuator/health` 404：未引 actuator web 端点（白名单含该路径但依赖缺失），后端存活检测用任意公开接口代替
+- 冒烟期间临时启用的券模板已还原 status=2
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -364,7 +392,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
