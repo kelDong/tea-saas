@@ -6,6 +6,7 @@
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+8b385e4 feat(framework+order+payment+admin-web): /ws/orders 门店接单实时推送——framework WS内核(SPI门店解析/afterCommit尽力推送/query token握手R7R8门店隔离)+支付成功NEW_ORDER/流转退款STATUS_CHANGED触发+接单页实时刷新新单提醒连接状态平板CSS F-ORD-03
 d80fc05 feat(pay): 微信支付V3真实网关代码路径——wechatpay-java接入/tea.pay.mock双模式/回调V3验签解密+resultCode失败态分派/退款受理即完成 F-PAY-01 F-PAY-02
 411a0ae fix(mini-program): mock支付回调改裸uni.request——后端按微信网关协议回纯文本SUCCESS(text/plain)，经http()的Result解包会判BizError，收银台toast请求失败(200)且轮询永不启动；改按HTTP 2xx判成功 F-PAY-01
 10d4f62 docs(harness): 会话记忆补录——分类接口补丁提交记录 f994974
@@ -393,6 +394,26 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 飞书无匹配任务未同步（t100011 是"资质办理"事项仍进行中，非本开发任务）
 - 交易期内未验真实网关（无资质），切换后首日建议盯 pay_callback_task 重试与对账
 
+## 2.20 M17 —— ✅ /ws/orders 门店接单实时推送（2026-10-10，commit 8b385e4）
+
+**背景**：store-terminal 方向 Owner 拍板**方案A——不建独立端，admin-web 补 WS**（PRD §2.2 门店端本就定义为"Web/平板可复用后台"；接单页已有，仅缺实时性）。接口需求 §8.3 的 `/ws/orders` 契约本里程碑补全定义并落地。
+
+| 落点 | 内容 |
+|---|---|
+| framework WS 内核（ws 包 7 类，新） | `WsOrderMessage`（NEW_ORDER/STATUS_CHANGED 两型 DTO + 工厂）；`OrderWsRegistry`（会话↔`tenantId:storeId` 订阅表，push 按 key 过滤、`synchronized(session)` 发送防并发）；`OrderWsHandler`（连接生命周期 + PING/PONG 心跳）；`OrderWsAuthInterceptor`（**query token 握手鉴权**——浏览器 WS 无法带请求头；`StpUtil.getLoginIdByToken`→会话取 tenantId/roles，**仅 R7/R8** 否则 401/403；SPI 解析名下门店前后 set/clear TenantContext）；`OrderWsConfig`（`/ws/orders` 注册 + `setAllowedOriginPatterns("*")`——准入已由 token 控制）；`OrderEventPublisher`（业务模块唯一入口，**事务内挂 afterCommit 再推**防前端先收到通知重查到旧状态；序列化/推送异常只记日志绝不影响主流程）；`WsStoreBindingResolver`（SPI 接口——framework 不能依赖 system，tea-system 实现查 sys_user_store 走租户插件） |
+| tea-system | `WsStoreBindingResolverImpl`（SPI 实现，eq userId → distinct storeIds） |
+| 触发点（4 处） | order：`transition()` 收口点（accept/make/finish 一处覆盖→STATUS_CHANGED）+ appCreate 储值分支（→NEW_ORDER status=2）；payment：`markPaymentSuccess`（仅 orderAffected==1 推 NEW_ORDER，幂等重试不重复打扰）+ posPay 储值分支（NEW_ORDER）；refund：`apply` 订单→7 后（STATUS_CHANGED，接单页同步消失）。**取消/超时不推**（待支付单不在接单页任何 tab，拍板记录） |
+| admin-web | `utils/orderWs.ts`（重连指数退避 1s→30s 封顶、30s 心跳、**每次重连重读 token**——登出清 token 后自然停止）；接单页 `store/Orders.vue`：WS 消息→300ms 防抖重查、NEW_ORDER→ElNotification+WebAudio 提示音（无用户手势静默失败横幅兜底）、工具栏连接状态 tag（4 态）、当前门店过滤（`String(msg.storeId)!==String(storeId.value)`）、`@media (pointer: coarse)` 平板放大字号行高；vite 代理 `/ws`（ws:true）；`types/order.ts` 补 WsOrderMessage |
+| 契约 | 接口需求 §8.3 补 WS 完整定义：连接鉴权/心跳/消息 JSON（**雪花 storeId/orderId 为字符串，tenantId/status/time 为数值**——SafeLongSerializer 口径，冒烟实证）/推送时机与尽力而为语义 |
+| 冒烟 | 脚本 `C:\Users\lenovo\AppData\Local\Temp\ws-smoke.mjs`（Node24 全局 fetch+WebSocket）：store01(R7) 登录→握手→PING/PONG→POS 现金下单收款→**NEW_ORDER(status=2)**→接单→**STATUS_CHANGED(3)**→make→**(4)**→退款→**(7)** 全链路 PASS；**负例**：坏 token 握手拒绝（1006 不 open）；tea-payment 单测 5/5 零回归 |
+
+**接手者须知**：
+- **重启后端才生效**（jar 已重打包重启，冒烟在新进程上做的）；冒烟期间生成的 SO20261010186722 已退款（status=7）留演示库
+- storeId 也是雪花字符串（与 /stores 返回 id 同口径）——前端比较必须 String() 归一，直接 `!==` 遇 number/string 混型必假阴性
+- R2/R6 打开接单页显示"实时推送不可用"（握手 403）：符合契约（仅 R7/R8），查询按钮兜底；握手 401/403 在浏览器表现为 1006 断开，客户端按断线退避重连（重连前重读 token，登出后停止）
+- 单实例单体无 sticky session 问题；若未来横向扩容，WS 内核需换 Redis pub/sub 广播（当前设计未预留，届时重构）
+- 飞书无匹配任务未同步
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -409,13 +430,13 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、~~微信 V3 验签~~（M16 d80fc05 代码路径收口，待资质）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、~~微信 V3 验签~~（M16 d80fc05 代码路径收口，待资质）、~~WebSocket /ws/orders~~（M17 8b385e4 收口——store-terminal 方向已拍板方案A：不建独立端，admin-web 补 WS+平板适配，见 §2.20）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. ~~**Review 方案 §4 次要项**~~（M12 247a32f 收口：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试 19 例——测试暴露的钱包 RR 快照与积分锁时序两缺陷已当场修复）
-3. ~~mini-program 初始化~~（M14 两批次收口，devtools 联调口径见 §2.17；后端 mock 支付/公开接口免鉴权配置均已打通）；store-terminal 仍未初始化（依赖 WebSocket /ws/orders，无契约定义）
+3. ~~mini-program 初始化~~（M14 两批次收口，devtools 联调口径见 §2.17；后端 mock 支付/公开接口免鉴权配置均已打通）；~~store-terminal~~（M17 拍板方案A 收口：门店端= admin-web 接单页 + WS 实时推送 + 平板 CSS，不建独立端）
 4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后补六项 `tea.pay.wx.*` 配置并置 `tea.pay.mock=false` 即切真实网关（M16 代码路径已就绪，见 §2.19 切换步骤）**；登录 wx-login 同期实现 jscode2session 真实分支（当前 code 即 openid，**Owner 已拍板一期先 mock 不预备**）；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）、~~微信支付 V3 真实网关代码路径预备：SDK/双模式/回调验签解密/退款受理即完成~~（M16 d80fc05）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）、~~微信支付 V3 真实网关代码路径预备：SDK/双模式/回调验签解密/退款受理即完成~~（M16 d80fc05）、~~/ws/orders 门店接单实时推送：WS内核+触发点+接单页实时化+§8.3契约（store-terminal 方案A 收口）~~（M17 8b385e4）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
