@@ -6,6 +6,9 @@
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+8bd71c3 test(smoke): S6下单出参可选链守卫——下单失败时记FAIL而非TypeError崩溃(崩溃会跳过末尾券模板清理) F-MKT-01
+4acda6c fix(mkt): 领券生效时间按秒截断——MySQL datetime(0)对小数秒四舍五入会把valid_start入到下一秒,领券后同秒内用券被误判"不在可用有效期"(S6冒烟首轮FAIL定位) F-MKT-01
+d7d9f70 docs(handoff): 进度快照更新至M18——端到端冒烟测试套件入档
 e1353a5 test(admin-web): Playwright E2E 资金主干流S9——UI登录(验证码留空+API注入fallback)/收银台现金下单收款/接单页三段流转到已完成/WS实时推送中连接态断言 F-ORD-02 F-ORD-03 F-ORD-04
 c5980ea test(smoke): API级端到端冒烟套件tools/smoke S1~S8——B端POS现金/退款闭环/取消回补/对账日结+C端全链路资产(充值积分券储值)+WS实时推送+权限租户负例；动态查找差值断言+自建可回收(smoke-r8/临时券模板) F-ORD-01~04 F-PAY-01~03 F-MEM-01~03 F-MKT-01 F-APP-01~03
 6f9de94 docs(test): 端到端冒烟测试计划v1.0——S1~S9场景清单/每场景前置步骤断言负例清理/验收口径/维护规则 F-ORD F-PAY F-MEM F-MKT F-APP
@@ -417,7 +420,7 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 单实例单体无 sticky session 问题；若未来横向扩容，WS 内核需换 Redis pub/sub 广播（当前设计未预留，届时重构）
 - 飞书无匹配任务未同步
 
-## 2.21 M18 —— ✅ 端到端冒烟测试套件（2026-10-10，commits 6f9de94 + c5980ea + e1353a5）
+## 2.21 M18 —— ✅ 端到端冒烟测试套件（2026-10-10，commits 6f9de94 + c5980ea + e1353a5 + 4acda6c/8bd71c3 复跑修复）
 
 **测试场景整理 → 每场景测试计划 → 端到端冒烟实现，三件套入档**（权威口径：`docs/茶饮SaaS-测试计划.md` v1.0，场景 S1~S9）：
 
@@ -428,6 +431,8 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 | `admin-web/e2e/` Playwright | **S9** UI 资金主干流：UI 登录（验证码留空+API 注入 fallback）→ 收银台现金下单收款（捕获 orderNo）→ 接单页三段流转到已完成 → WS「实时推送中」连接态。`npm run test:e2e` | e1353a5 |
 
 **验证结果**：API 套件 8/8 场景 94 断言全绿（含幂等复跑：smoke-r8 复用/券模板复用路径）；E2E 两轮稳定通过。
+
+**复跑战果（当晚全量执行）**：首轮 S6 FAIL，定位出**真 bug**并当场修复——`MktCouponServiceImpl.claim` 用带纳秒的 `LocalDateTime.now()` 写 `valid_start`，而 **MySQL datetime(0) 对小数秒四舍五入**（.5+ 入到下一秒），领券后**同秒内**用券 `now.isBefore(validStart)` 为真 → 误报"券不在可用有效期"（间歇性：仅当领券落在秒的后半段且使用落在同秒内）。修复：claim 时间戳 `truncatedTo(ChronoUnit.SECONDS)`（4acda6c）；连带 s6 脚本补可选链守卫防崩溃跳过清理（8bd71c3）。修复后全量复跑 **9/9 全绿**（S6 门槛负例文案随之稳定为「未满足券使用门槛」）。
 
 **接手者须知（实现期踩的坑，脚本注释里也有）**：
 - **ReorderVO 商品字段是 `salePrice` 不是 `price`**；**PayRefund 出参是 `orderId`（雪花字符串）不是 `orderNo`**
