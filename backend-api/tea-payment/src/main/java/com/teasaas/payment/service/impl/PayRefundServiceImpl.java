@@ -13,6 +13,7 @@ import com.teasaas.member.service.MemWalletService;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.mapper.OrdOrderMapper;
 import com.teasaas.order.service.OrdOrderService;
+import com.teasaas.payment.config.PayProperties;
 import com.teasaas.payment.dto.RefundApplyDTO;
 import com.teasaas.payment.entity.PayPayment;
 import com.teasaas.payment.entity.PayRefund;
@@ -20,11 +21,12 @@ import com.teasaas.payment.mapper.PayPaymentMapper;
 import com.teasaas.payment.mapper.PayRefundMapper;
 import com.teasaas.payment.service.PayRefundService;
 import com.teasaas.payment.vo.RefundVO;
+import com.teasaas.payment.wx.WxPayClient;
 import com.teasaas.system.entity.SysUserStore;
 import com.teasaas.system.mapper.SysUserStoreMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +40,8 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * 退款服务实现（F-PAY-02，接口需求 9.2，P0-5 决策）
  *
- * <p>一期仅整单退（amount=实付）：微信原路退（mock 即时成功），
+ * <p>一期仅整单退（amount=实付），受理即完成口径：微信 V3 受理成功即置 2
+ * （mock 即时；真实模式受理失败抛异常整体回滚，微信侧极罕见退款失败由对账人工兜底），
  * 储值单（pay_channel=2）即时退回钱包（refundType=2）；已核销券不退还
  * （coupon_returned=0），积分全额回补（bizType=3，bizNo=orderNo 幂等）。
  * 退款成功 = 退款单置 2 + 订单条件更新 →7（已退款）+ 库存回补
@@ -81,9 +84,9 @@ public class PayRefundServiceImpl implements PayRefundService {
     private final MemWalletService memWalletService;
     private final SysUserStoreMapper sysUserStoreMapper;
 
-    /** mock 网关开关：true 退款即时成功；正式模式退款单置 1 处理中待微信回调 */
-    @Value("${tea.pay.mock:true}")
-    private boolean mock;
+    private final PayProperties payProperties;
+    /** mock=true 时 WxPayClient 不装配，必须 ObjectProvider 可空注入 */
+    private final ObjectProvider<WxPayClient> wxPayClientProvider;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -130,7 +133,7 @@ public class PayRefundServiceImpl implements PayRefundService {
             throw new BizException(ErrorCode.REFUND_NOT_ALLOWED, "无成功支付流水");
         }
 
-        // 退款单落库（1处理中；mock 即时置 2）
+        // 退款单落库（先置 1 处理中，受理成功后置 2）
         PayRefund refund = new PayRefund();
         refund.setTenantId(order.getTenantId());
         refund.setRefundNo(genNo("RF"));
@@ -148,15 +151,26 @@ public class PayRefundServiceImpl implements PayRefundService {
             refund.setRefundNo(genNo("RF"));
             payRefundMapper.insert(refund);
         }
-        if (mock) {
-            payRefundMapper.update(null, new LambdaUpdateWrapper<PayRefund>()
-                    .set(PayRefund::getStatus, REFUND_SUCCESS)
-                    .set(PayRefund::getRefundTime, LocalDateTime.now())
-                    .eq(PayRefund::getId, refund.getId())
-                    .eq(PayRefund::getStatus, REFUND_PENDING));
-            refund.setStatus(REFUND_SUCCESS);
-            refund.setRefundTime(LocalDateTime.now());
+
+        // 受理外部通道：真实模式微信 V3（受理失败抛异常整体回滚，退款单/订单联动全部撤销）；
+        // mock 与储值无外部调用。outTradeNo=paymentNo（下单时传微信的商户单号）。
+        if (!payProperties.isMock() && !balanceRefund) {
+            WxPayClient client = wxPayClientProvider.getIfAvailable();
+            if (client == null) {
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "真实支付客户端未装配");
+            }
+            client.refund(payment.getPaymentNo(), refund.getRefundNo(), refund.getAmount(),
+                    dto.getReason() == null ? "整单退款" : dto.getReason());
         }
+
+        // 受理即完成（一期口径）：微信受理成功/储值/mock 即时——退款单置 2
+        payRefundMapper.update(null, new LambdaUpdateWrapper<PayRefund>()
+                .set(PayRefund::getStatus, REFUND_SUCCESS)
+                .set(PayRefund::getRefundTime, LocalDateTime.now())
+                .eq(PayRefund::getId, refund.getId())
+                .eq(PayRefund::getStatus, REFUND_PENDING));
+        refund.setStatus(REFUND_SUCCESS);
+        refund.setRefundTime(LocalDateTime.now());
 
         // 订单 →7 已退款（条件更新防并发重复退）
         int affected = ordOrderMapper.update(null, new LambdaUpdateWrapper<OrdOrder>()
@@ -180,7 +194,7 @@ public class PayRefundServiceImpl implements PayRefundService {
         ordOrderService.restoreOrderStock(orderId, StockBizType.REFUND_RESTORE);
         log.info("退款完成 refundNo={} orderNo={} amount={}分 type={} mock={}",
                 refund.getRefundNo(), order.getOrderNo(), refund.getAmount(),
-                balanceRefund ? "退储值" : "微信原路", mock);
+                balanceRefund ? "退储值" : "微信原路", payProperties.isMock());
 
         return toVO(refund, order.getOrderNo());
     }

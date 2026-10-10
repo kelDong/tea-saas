@@ -50,6 +50,15 @@ tea:
     pay-timeout-minutes: 15
   pay:
     mock: true
+    # 微信支付 V3 商户配置（mock=false 时五项+回调地址必填，WxPayClient fail-fast 校验；
+    # 资质下发后经环境变量注入，私钥文件放服务器本地路径）
+    wx:
+      app-id: ${WX_PAY_APP_ID:}
+      mch-id: ${WX_PAY_MCH_ID:}
+      mch-serial-no: ${WX_PAY_MCH_SERIAL_NO:}
+      private-key-path: ${WX_PAY_PRIVATE_KEY_PATH:}
+      api-v3-key: ${WX_PAY_API_V3_KEY:}
+      notify-url-base: ${WX_PAY_NOTIFY_URL_BASE:}
   app:
     # C 端会员会话 token 有效期（天），正式运营可与 Sa-Token 会话时长对齐调整
     member-token-ttl-days: 7

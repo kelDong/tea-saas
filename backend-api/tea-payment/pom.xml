@@ -39,10 +39,20 @@
             <groupId>com.teasaas</groupId>
             <artifactId>tea-member</artifactId>
         </dependency>
+        <!-- 微信支付 V3 官方 SDK（mock=false 时由 WxPayClient 加载） -->
+        <dependency>
+            <groupId>com.github.wechatpay-apiv3</groupId>
+            <artifactId>wechatpay-java</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

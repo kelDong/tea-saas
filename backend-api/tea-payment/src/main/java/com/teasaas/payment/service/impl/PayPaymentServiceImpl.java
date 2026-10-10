@@ -7,8 +7,12 @@ import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
+import com.teasaas.member.entity.MemMember;
+import com.teasaas.member.mapper.MemMemberMapper;
 import com.teasaas.member.service.MemPointsService;
 import com.teasaas.member.service.MemWalletService;
+import com.teasaas.payment.config.PayProperties;
+import com.teasaas.payment.wx.WxPayClient;
 import com.teasaas.order.dto.PosPayDTO;
 import com.teasaas.order.entity.OrdOrder;
 import com.teasaas.order.mapper.OrdOrderMapper;
@@ -26,7 +30,7 @@ import com.teasaas.system.mapper.SysUserStoreMapper;
 import com.teasaas.system.mapper.TenantMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,11 +46,17 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 支付服务实现（F-PAY-01，接口需求 9.1；一期 mock 网关）
+ * 支付服务实现（F-PAY-01，接口需求 9.1；双模式网关）
  *
- * <p>回调可靠性（P1-3）：验签(mock 跳过) → 幂等（流水已成功直接应答 SUCCESS）→
+ * <p>mock=true（默认，资质 t100011 未下发）：mock 网关，WxPayClient 不装配；
+ * mock=false：微信支付 V3 真实网关（官方 wechatpay-java SDK，
+ * JSAPI/Native 统一下单 + openid 后端自查 + 受理即完成退款）。</p>
+ *
+ * <p>回调可靠性（P1-3）：验签(mock 直连明文跳过 / V3 前置在 NotifyController) →
+ * 幂等（流水已成功直接应答 SUCCESS）→
  * 落 pay_callback_task → 即时处理；失败由 tea-job 指数退避重试（不引 MQ）。
  * 支付成功 = 流水 1→2 + 订单 1→2（条件更新防并发重复置位）；
+ * 支付失败 = 流水 1→3（订单留待支付由超时取消收口）；
  * 超时取消后回调到达 → 流水关闭（4），差异对账兜底。</p>
  */
 @Slf4j
@@ -60,6 +70,7 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     /** 流水状态：1待支付/2成功/3失败/4已关闭 */
     private static final int PAY_STATUS_PENDING = 1;
     private static final int PAY_STATUS_SUCCESS = 2;
+    private static final int PAY_STATUS_FAILED = 3;
     private static final int PAY_STATUS_CLOSED = 4;
 
     /** 订单状态：1待支付/2已支付；渠道（订单/流水同编号）：1微信/2储值/3现金 */
@@ -88,16 +99,16 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private final PayPaymentMapper payPaymentMapper;
     private final PayCallbackTaskMapper payCallbackTaskMapper;
     private final OrdOrderMapper ordOrderMapper;
+    private final MemMemberMapper memMemberMapper;
     private final MemPointsService memPointsService;
     private final MemWalletService memWalletService;
     private final SysUserStoreMapper sysUserStoreMapper;
     private final TenantMapper tenantMapper;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
-
-    /** mock 网关开关（微信商户资质 t100011 下发后置 false 接正式 V3） */
-    @Value("${tea.pay.mock:true}")
-    private boolean mock;
+    private final PayProperties payProperties;
+    /** mock=true 时 WxPayClient 不装配，必须 ObjectProvider 可空注入 */
+    private final ObjectProvider<WxPayClient> wxPayClientProvider;
 
     // ==================== 统一下单 ====================
 
@@ -108,12 +119,21 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         PayPayment payment = reuseOrCreate(order, CHANNEL_WX);
 
         PaymentVO vo = toVO(payment);
-        // mock 拉起参数（正式模式替换为微信 JSAPI prepay 签名包）
-        vo.setPayParams(Map.of(
-                "appId", "mock-appid",
-                "timeStamp", String.valueOf(System.currentTimeMillis() / 1000),
-                "nonceStr", UUID.randomUUID().toString().replace("-", ""),
-                "package", "prepay_id=mock_" + payment.getPaymentNo()));
+        if (payProperties.isMock()) {
+            // mock 拉起参数：结构对齐 wx.requestPayment 六键（signType/paySign 为 mock 占位）
+            vo.setPayParams(Map.of(
+                    "appId", "mock-appid",
+                    "timeStamp", String.valueOf(System.currentTimeMillis() / 1000),
+                    "nonceStr", UUID.randomUUID().toString().replace("-", ""),
+                    "package", "prepay_id=mock_" + payment.getPaymentNo(),
+                    "signType", "RSA",
+                    "paySign", "mock-sign"));
+        } else {
+            // V3 JSAPI 统一下单：openid 后端自查（order.memberId → mem_member）
+            vo.setPayParams(requireWxClient().jsapiPrepay(
+                    payment.getPaymentNo(), payment.getAmount(),
+                    "茶饮订单-" + order.getOrderNo(), requireOpenid(order)));
+        }
         return vo;
     }
 
@@ -126,7 +146,10 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         PayPayment payment = reuseOrCreate(order, CHANNEL_WX);
 
         PaymentVO vo = toVO(payment);
-        vo.setCodeUrl(mock ? "weixin://wxpay/mock/" + payment.getPaymentNo() : null);
+        vo.setCodeUrl(payProperties.isMock()
+                ? "weixin://wxpay/mock/" + payment.getPaymentNo()
+                : requireWxClient().nativePrepay(payment.getPaymentNo(), payment.getAmount(),
+                        "茶饮订单-" + order.getOrderNo()));
         return vo;
     }
 
@@ -234,10 +257,8 @@ public class PayPaymentServiceImpl implements PayPaymentService {
 
     @Override
     public String handleCallback(PayCallbackDTO dto) {
-        // 验签：mock 模式跳过；正式模式校验微信 V3 签名
-        if (!mock && (dto.getSign() == null || dto.getSign().isBlank())) {
-            throw new BizException(ErrorCode.CALLBACK_SIGN_FAIL);
-        }
+        // 验签已前置：mock 直连明文无需验签；V3 报文在 NotifyController 经
+        // WxPayClient.parsePayNotify 完成 Wechatpay-* 头验签 + AES-GCM 解密，失败即拒绝
         // 回调无登录态（白名单）：先绕过租户插件按全局唯一单号反查流水，
         // 再显式注入流水租户——后续即时处理（落表/订单置位/积分发放）全部落在正确租户上下文
         PayPayment payment = payPaymentMapper.selectByPaymentNoForCallback(dto.getPaymentNo());
@@ -334,12 +355,18 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     }
 
     /**
-     * 任务处理：成功置 2；幂等（流水已成功直接成功收尾）。
+     * 任务处理：按 resultCode 分派——SUCCESS 置流水 2，其余（CLOSED/PAYERROR 等）置 3；
+     * 任务本身两种结果均算处理完成（置 2）；幂等（流水已终态时落账方法空转）。
      * 事务由调用方提供（handleCallback/retryPendingTasks 经 TransactionTemplate）——
      * 本类内自调用绕过代理，勿在本方法再加 @Transactional。
      */
     public void processTask(PayCallbackTask task, PayPayment payment) {
-        markPaymentSuccess(payment, extractTransactionId(task));
+        PayCallbackDTO dto = extractDto(task);
+        if ("SUCCESS".equals(dto.getResultCode())) {
+            markPaymentSuccess(payment, dto.getTransactionId());
+        } else {
+            markPaymentFailed(payment, dto.getTransactionId());
+        }
         payCallbackTaskMapper.update(null, new LambdaUpdateWrapper<PayCallbackTask>()
                 .set(PayCallbackTask::getStatus, TASK_SUCCESS)
                 .eq(PayCallbackTask::getId, task.getId())
@@ -404,6 +431,19 @@ public class PayPaymentServiceImpl implements PayPaymentService {
             memPointsService.earnOnPaid(paidOrder.getMemberId(), paidOrder.getOrderNo(),
                     paidOrder.getPayAmount() == null ? 0L : paidOrder.getPayAmount());
         }
+    }
+
+    /**
+     * 支付失败落账（V3 tradeState 非 SUCCESS）：流水 1→3 终态（条件更新，已终态空转幂等）；
+     * 订单保持待支付，由既有超时取消任务收口，不在此处联动取消。
+     */
+    private void markPaymentFailed(PayPayment payment, String transactionId) {
+        payPaymentMapper.update(null, new LambdaUpdateWrapper<PayPayment>()
+                .set(PayPayment::getStatus, PAY_STATUS_FAILED)
+                .set(PayPayment::getTransactionId, transactionId)
+                .set(PayPayment::getCallbackTime, LocalDateTime.now())
+                .eq(PayPayment::getId, payment.getId())
+                .eq(PayPayment::getStatus, PAY_STATUS_PENDING));
     }
 
     // ==================== 查询 ====================
@@ -482,13 +522,33 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         payCallbackTaskMapper.update(null, wrapper);
     }
 
-    private String extractTransactionId(PayCallbackTask task) {
+    private PayCallbackDTO extractDto(PayCallbackTask task) {
         try {
-            PayCallbackDTO dto = objectMapper.readValue(task.getPayload(), PayCallbackDTO.class);
-            return dto.getTransactionId();
+            return objectMapper.readValue(task.getPayload(), PayCallbackDTO.class);
         } catch (Exception e) {
             throw new BizException(ErrorCode.PARAM_ERROR, "回调报文损坏");
         }
+    }
+
+    /** 真实网关客户端（mock=false 必装配，兜底防御性校验） */
+    private WxPayClient requireWxClient() {
+        WxPayClient client = wxPayClientProvider.getIfAvailable();
+        if (client == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "真实支付客户端未装配");
+        }
+        return client;
+    }
+
+    /** JSAPI 支付 openid 后端自查：小程序单 memberId 必有，经 mem_member 取 openid */
+    private String requireOpenid(OrdOrder order) {
+        if (order.getMemberId() == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "小程序单缺少会员，无法发起 JSAPI 支付");
+        }
+        MemMember member = memMemberMapper.selectById(order.getMemberId());
+        if (member == null || member.getOpenid() == null || member.getOpenid().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "会员 openid 缺失，无法发起 JSAPI 支付");
+        }
+        return member.getOpenid();
     }
 
     private PaymentVO toVO(PayPayment payment) {
