@@ -50,7 +50,7 @@ const ptsOrder = (await api('POST', '/api/app/v1/orders', { bearer: c.bearer },
   { storeId: store.id, items: [item(1)], pointsUsed: usePts, payChannel: 2 })).data
 check('积分+储值单 payAmount', N(ptsOrder?.payAmount) === price - usePts, `payAmount=${ptsOrder?.payAmount}`)
 const snap3 = await memberSnapshot(c.bearer)
-check('储值精确扣款（差值=payAmount）', N(snap1.balance) - N(snap3.balance) === N(ptsOrder.payAmount),
+check('储值精确扣款（差值=payAmount）', N(snap1.balance) - N(snap3.balance) === N(ptsOrder?.payAmount),
   `balance ${snap1.balance} → ${snap3.balance}`)
 const plogs = await api('GET', '/api/app/v1/members/me/points?page=1&size=20', { bearer: c.bearer })
 check('积分明细含抵扣记录', (plogs.data?.list || []).some((x) => N(x.changePoints) === -usePts))
@@ -100,7 +100,8 @@ const cpOrder = (await api('POST', '/api/app/v1/orders', { bearer: c.bearer },
 check('券+储值单 payAmount=小计-面值', N(cpOrder?.payAmount) === three - couponAmount,
   `payAmount=${cpOrder?.payAmount}（${three}-${couponAmount}）`)
 const snap4 = await memberSnapshot(c.bearer)
-check('组合单储值精确扣款', N(balBefore) - N(snap4.balance) === N(cpOrder.payAmount),
+// cpOrder 可选链守卫：下单失败时记 FAIL 而非 TypeError 崩溃（崩溃会跳过末尾模板清理）
+check('组合单储值精确扣款', N(balBefore) - N(snap4.balance) === N(cpOrder?.payAmount),
   `balance ${balBefore} → ${snap4.balance}`)
 const used = await api('GET', '/api/app/v1/coupons?status=2&page=1&size=50', { bearer: c.bearer })
 check('券已核销（status=2）', (used.data?.list || []).some((x) => String(x.id) === String(coupon.id)))
