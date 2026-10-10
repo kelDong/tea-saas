@@ -1,11 +1,12 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M15（mini-program × 后端全链路冒烟回归：mock 支付回调真缺陷修复）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M16（微信支付 V3 真实网关代码路径预备：SDK 接入/双模式/回调验签解密/退款受理即完成）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+d80fc05 feat(pay): 微信支付V3真实网关代码路径——wechatpay-java接入/tea.pay.mock双模式/回调V3验签解密+resultCode失败态分派/退款受理即完成 F-PAY-01 F-PAY-02
 411a0ae fix(mini-program): mock支付回调改裸uni.request——后端按微信网关协议回纯文本SUCCESS(text/plain)，经http()的Result解包会判BizError，收银台toast请求失败(200)且轮询永不启动；改按HTTP 2xx判成功 F-PAY-01
 10d4f62 docs(harness): 会话记忆补录——分类接口补丁提交记录 f994974
 f994974 fix(framework+product): C端分类接口两处补丁——categories漏登SaInterceptor白名单会401；selectAppCategories改GROUP BY规避MySQL 3065 F-APP-02
@@ -370,6 +371,28 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - `/actuator/health` 404：未引 actuator web 端点（白名单含该路径但依赖缺失），后端存活检测用任意公开接口代替
 - 冒烟期间临时启用的券模板已还原 status=2
 
+## 2.19 M16 —— ✅ 微信支付 V3 真实网关代码路径预备（2026-10-10，commit d80fc05）
+
+**背景**：M14 遗留"真实支付 paySign 未实现"收口。资质 t100011 未下发，本里程碑把 `tea.pay.mock=false` 的完整代码路径落库——资质到手后**只需补配置即切换，零代码改动**。
+
+| 落点 | 内容 |
+|---|---|
+| SDK 接入 | 根 pom `wechatpay-java 0.2.17`（dependencyManagement）+ tea-payment 引入；`PayProperties`（tea.pay 前缀，@Value 全面替换） |
+| WxPayClient（wx 包，新） | `@ConditionalOnProperty(tea.pay.mock=false)` 装配；构造 fail-fast（appId/mchId/mchSerialNo/privateKeyPath/apiV3Key 缺一启动即错）+ RSAAutoCertificateConfig 平台证书自动下载轮换；jsapiPrepay（六键含 paySign）/nativePrepay（code_url）/refund/parsePayNotify（Wechatpay-* 四头验签 + AES-GCM 解密） |
+| 下单真实分支 | wxJsapi：openid **后端自查**（order.memberId→mem_member，决策 D2）；wxNative：code_url 真实拉取；mock payParams 补 signType=RSA/paySign 占位对齐 wx.requestPayment 六键结构 |
+| 回调双协议 | NotifyController 改 String body + 四 Wechatpay-* 头：mock 明文 JSON / V3 验签解密→Transaction 映射 PayCallbackDTO（tradeState.name()→resultCode，金额天然为分），幂等/金额核对/任务重试链路全复用 |
+| 失败态分派 | processTask 按 resultCode 分派：SUCCESS→流水 2（原链路）；非 SUCCESS（CLOSED/PAYERROR 等）→**流水 1→3 失败终态**（markPaymentFailed 条件更新幂等，订单留待支付由超时取消收口）；旧 sign 字段校验删除（验签前置到 Controller） |
+| 退款受理即完成 | PayRefundServiceImpl：真实模式先 `client.refund`（outTradeNo=paymentNo，**受理失败抛异常整体回滚**），成功后无条件置 2；mock/储值即时（口径拍板：微信侧极罕见退款失败由对账人工兜底） |
+| 配置 | application.yml 扩 `tea.pay.wx.*` 六项环境变量占位（WX_PAY_APP_ID 等）；notify-url-base 为回调公网地址 |
+| 单测 | NotifyControllerTest 5 例（tea-payment 首个单测）：双协议分派/Transaction 映射（SUCCESS 与 PAYERROR）/报文异常/客户端缺失 fail-fast |
+
+**接手者须知**：
+- **SDK 类路径坑**：`Transaction` 在 `com.wechat.pay.java.service.payments.model`（jsapi.model 包只有请求模型，javap 实证）；`PrepayWithRequestPaymentResponse.getPackageVal()`（package 是 Java 关键字）；`TradeStateEnum` 是 Transaction 内部枚举
+- mock=true 行为**完全不变**（M15 冒烟链路零回归：mockCallback resultCode 固定 'SUCCESS' 与新分派兼容）
+- 切换步骤（t100011 下发后）：六项环境变量 + `tea.pay.mock=false` 重启即生效；微信侧还需配置回调地址 `{notify-url-base}/api/notify/wx-pay/callback`
+- 飞书无匹配任务未同步（t100011 是"资质办理"事项仍进行中，非本开发任务）
+- 交易期内未验真实网关（无资质），切换后首日建议盯 pay_callback_task 重试与对账
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -386,13 +409,13 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 
 ## 4. 接手后的建议顺序
 
-1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）、微信 V3 验签；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
+1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、~~微信 V3 验签~~（M16 d80fc05 代码路径收口，待资质）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）、WebSocket /ws/orders（store-terminal 未初始化）；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. ~~**Review 方案 §4 次要项**~~（M12 247a32f 收口：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试 19 例——测试暴露的钱包 RR 快照与积分锁时序两缺陷已当场修复）
 3. ~~mini-program 初始化~~（M14 两批次收口，devtools 联调口径见 §2.17；后端 mock 支付/公开接口免鉴权配置均已打通）；store-terminal 仍未初始化（依赖 WebSocket /ws/orders，无契约定义）
 4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
-5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后 `tea.pay.mock` 置 false**；另 warning 提案色 `#C9982F` 待确认（M6）
+5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后补六项 `tea.pay.wx.*` 配置并置 `tea.pay.mock=false` 即切真实网关（M16 代码路径已就绪，见 §2.19 切换步骤）**；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）、~~微信支付 V3 真实网关代码路径预备：SDK/双模式/回调验签解密/退款受理即完成~~（M16 d80fc05）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
