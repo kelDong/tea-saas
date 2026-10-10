@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,9 @@ public class MktCouponServiceImpl implements MktCouponService {
         if (template == null || template.getStatus() == null || template.getStatus() != 1) {
             throw new BizException(ErrorCode.COUPON_TEMPLATE_NOT_FOUND, "券模板不存在或已停用");
         }
-        LocalDateTime now = LocalDateTime.now();
+        // 按秒截断：MySQL datetime(0) 对小数秒四舍五入，若 now 含 .5+ 秒的小数部分，
+        // valid_start 会被入到下一秒，导致领券后同秒内使用被误判"不在可用有效期"
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         if (template.getValidType() == VALID_TYPE_FIXED && now.isAfter(template.getValidEnd())) {
             throw new BizException(ErrorCode.COUPON_NOT_AVAILABLE, "券已过领取截止时间");
         }
