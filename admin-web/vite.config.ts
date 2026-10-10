@@ -19,6 +19,12 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // 订单实时推送 WS（/ws/orders，接口需求 8.3）——ws: true 升级代理
+      '/ws': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })

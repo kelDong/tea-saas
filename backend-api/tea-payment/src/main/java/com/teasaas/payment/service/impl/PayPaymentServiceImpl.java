@@ -7,6 +7,8 @@ import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
+import com.teasaas.framework.ws.OrderEventPublisher;
+import com.teasaas.framework.ws.WsOrderMessage;
 import com.teasaas.member.entity.MemMember;
 import com.teasaas.member.mapper.MemMemberMapper;
 import com.teasaas.member.service.MemPointsService;
@@ -107,6 +109,9 @@ public class PayPaymentServiceImpl implements PayPaymentService {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final PayProperties payProperties;
+
+    /** 订单 WS 实时推送（/ws/orders 支付成功 NEW_ORDER，P1-2 决策） */
+    private final OrderEventPublisher orderEventPublisher;
     /** mock=true 时 WxPayClient 不装配，必须 ObjectProvider 可空注入 */
     private final ObjectProvider<WxPayClient> wxPayClientProvider;
 
@@ -208,6 +213,10 @@ public class PayPaymentServiceImpl implements PayPaymentService {
             }
             // 储值单不经支付模块，订单侧直接发积分（bizNo=orderNo 幂等）
             memPointsService.earnOnPaid(dto.getMemberId(), order.getOrderNo(), payAmount);
+            // WS 实时推送：POS 储值单即时支付进接单页（NEW_ORDER）
+            orderEventPublisher.publish(WsOrderMessage.of(WsOrderMessage.TYPE_NEW_ORDER,
+                    order.getTenantId(), order.getStoreId(), order.getId(), order.getOrderNo(),
+                    ORDER_STATUS_PAID, order.getTakeCode()));
 
             PosPayVO walletVo = new PosPayVO();
             walletVo.setOrderId(order.getId());
@@ -430,6 +439,12 @@ public class PayPaymentServiceImpl implements PayPaymentService {
         if (paidOrder != null && paidOrder.getMemberId() != null) {
             memPointsService.earnOnPaid(paidOrder.getMemberId(), paidOrder.getOrderNo(),
                     paidOrder.getPayAmount() == null ? 0L : paidOrder.getPayAmount());
+        }
+        // WS 实时推送：支付成功订单进接单页（NEW_ORDER；仅本流置位成功时，幂等重试不重复打扰）
+        if (orderAffected == 1 && paidOrder != null) {
+            orderEventPublisher.publish(WsOrderMessage.of(WsOrderMessage.TYPE_NEW_ORDER,
+                    paidOrder.getTenantId(), paidOrder.getStoreId(), paidOrder.getId(),
+                    paidOrder.getOrderNo(), ORDER_STATUS_PAID, paidOrder.getTakeCode()));
         }
     }
 

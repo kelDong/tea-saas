@@ -7,6 +7,8 @@ import com.teasaas.common.exception.BizException;
 import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.PageResult;
 import com.teasaas.framework.security.context.SecurityUtils;
+import com.teasaas.framework.ws.OrderEventPublisher;
+import com.teasaas.framework.ws.WsOrderMessage;
 import com.teasaas.inventory.constant.StockBizType;
 import com.teasaas.member.service.MemPointsService;
 import com.teasaas.member.service.MemWalletService;
@@ -85,6 +87,9 @@ public class PayRefundServiceImpl implements PayRefundService {
     private final SysUserStoreMapper sysUserStoreMapper;
 
     private final PayProperties payProperties;
+
+    /** 订单 WS 实时推送（/ws/orders 退款 STATUS_CHANGED） */
+    private final OrderEventPublisher orderEventPublisher;
     /** mock=true 时 WxPayClient 不装配，必须 ObjectProvider 可空注入 */
     private final ObjectProvider<WxPayClient> wxPayClientProvider;
 
@@ -192,6 +197,10 @@ public class PayRefundServiceImpl implements PayRefundService {
 
         // 库存回补（bizNo=orderNo + bizType=3 幂等）
         ordOrderService.restoreOrderStock(orderId, StockBizType.REFUND_RESTORE);
+        // WS 实时推送：订单转已退款，接单页同步消失/刷新（STATUS_CHANGED）
+        orderEventPublisher.publish(WsOrderMessage.of(WsOrderMessage.TYPE_STATUS_CHANGED,
+                order.getTenantId(), order.getStoreId(), order.getId(), order.getOrderNo(),
+                ORDER_STATUS_REFUNDED, order.getTakeCode()));
         log.info("退款完成 refundNo={} orderNo={} amount={}分 type={} mock={}",
                 refund.getRefundNo(), order.getOrderNo(), refund.getAmount(),
                 balanceRefund ? "退储值" : "微信原路", payProperties.isMock());

@@ -11,6 +11,8 @@ import com.teasaas.common.result.ErrorCode;
 import com.teasaas.common.result.PageResult;
 import com.teasaas.framework.security.context.SecurityUtils;
 import com.teasaas.framework.tenant.TenantContext;
+import com.teasaas.framework.ws.OrderEventPublisher;
+import com.teasaas.framework.ws.WsOrderMessage;
 import com.teasaas.inventory.constant.StockBizType;
 import com.teasaas.inventory.dto.StockItemDTO;
 import com.teasaas.inventory.service.InvStockService;
@@ -120,6 +122,8 @@ public class OrdOrderServiceImpl implements OrdOrderService {
     private final TenantMapper tenantMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
+    /** 订单 WS 实时推送（/ws/orders，P1-2 决策；afterCommit 尽力而为） */
+    private final OrderEventPublisher orderEventPublisher;
 
     /** 支付超时分钟数（P1-5 决策，配置 tea.order.pay-timeout-minutes） */
     @Value("${tea.order.pay-timeout-minutes:15}")
@@ -332,6 +336,10 @@ public class OrdOrderServiceImpl implements OrdOrderService {
             }
             // 储值单不经支付模块回调，订单侧直接发积分（bizNo=orderNo 幂等）
             memPointsService.earnOnPaid(memberId, order.getOrderNo(), payAmount);
+            // WS 实时推送：储值单即时支付，直接以已支付身份进接单页（NEW_ORDER）
+            orderEventPublisher.publish(WsOrderMessage.of(WsOrderMessage.TYPE_NEW_ORDER,
+                    order.getTenantId(), order.getStoreId(), order.getId(), order.getOrderNo(),
+                    STATUS_PAID, order.getTakeCode()));
         }
 
         // 下单即扣库存（13.1 条件更新；orderNo 幂等；不足整单回滚）
@@ -732,6 +740,9 @@ public class OrdOrderServiceImpl implements OrdOrderService {
         if (ordOrderMapper.update(null, wrapper) == 0) {
             throw new BizException(ErrorCode.ORDER_STATUS_NOT_ALLOWED);
         }
+        // WS 实时推送：接单/制作/出餐等状态变更（afterCommit，尽力而为）
+        orderEventPublisher.publish(WsOrderMessage.of(WsOrderMessage.TYPE_STATUS_CHANGED,
+                order.getTenantId(), order.getStoreId(), order.getId(), order.getOrderNo(), to, order.getTakeCode()));
     }
 
     private OrdOrder requireExists(Long id) {

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 
 import { franchiseApi } from '@/api/franchise'
 import { orderApi, refundApi } from '@/api/order'
-import type { OrdOrder, OrderDetailVO } from '@/types/order'
+import type { OrdOrder, OrderDetailVO, WsOrderMessage } from '@/types/order'
 import { ORDER_SOURCE_MAP, ORDER_STATUS_MAP, PAY_CHANNEL_MAP } from '@/constants/order'
 import { fen2yuan, formatDateTime } from '@/utils/format'
+import { createOrderWs, type WsStatus } from '@/utils/orderWs'
 
 // 快捷状态过滤（门店视角默认待处理链路）
 const STATUS_OPTIONS = [2, 3, 4, 5, 1, 6, 7]
@@ -136,6 +137,69 @@ onMounted(async () => {
     storeId.value = stores.value[0].id
   }
 })
+
+// ---------- 实时推送（/ws/orders，接口需求 8.3；非 R7/R8 角色握手被拒，查询按钮兜底） ----------
+const wsStatus = ref<WsStatus>('connecting')
+const WS_STATUS_VIEW: Record<WsStatus, { label: string; tag: 'success' | 'info' | 'warning' }> = {
+  open: { label: '实时推送中', tag: 'success' },
+  connecting: { label: '连接中', tag: 'warning' },
+  closed: { label: '已断开·自动重连', tag: 'warning' },
+  denied: { label: '实时推送不可用', tag: 'info' },
+}
+
+let reloadTimer: number | undefined
+let audioCtx: AudioContext | null = null
+
+/** 新单提示音（WebAudio；无用户手势时静默失败——通知横幅兜底） */
+function beep() {
+  try {
+    audioCtx ??= new AudioContext()
+    if (audioCtx.state === 'suspended') void audioCtx.resume()
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6)
+    osc.connect(gain).connect(audioCtx.destination)
+    osc.start()
+    osc.stop(audioCtx.currentTime + 0.6)
+  } catch {
+    // 音频不可用忽略
+  }
+}
+
+function handleWsMessage(msg: WsOrderMessage) {
+  // WS 订阅名下门店全集，页面只关心当前门店（雪花 ID 两侧均为字符串口径）
+  if (!storeId.value || String(msg.storeId) !== String(storeId.value)) return
+  if (msg.type === 'NEW_ORDER') {
+    ElNotification({
+      title: '新订单',
+      message: `${msg.orderNo}（取餐码 ${msg.takeCode ?? '—'}）待接单`,
+      type: 'success',
+      duration: 6000,
+    })
+    beep()
+  }
+  // 防抖合并：短时多单/多次状态变更只重查一次
+  if (reloadTimer !== undefined) window.clearTimeout(reloadTimer)
+  reloadTimer = window.setTimeout(() => {
+    reloadTimer = undefined
+    load()
+  }, 300)
+}
+
+const orderWs = createOrderWs({
+  onMessage: handleWsMessage,
+  onStatus: (status) => {
+    wsStatus.value = status
+  },
+})
+
+onUnmounted(() => {
+  orderWs.stop()
+  if (reloadTimer !== undefined) window.clearTimeout(reloadTimer)
+})
 </script>
 
 <template>
@@ -149,6 +213,12 @@ onMounted(async () => {
           <el-option v-for="value in STATUS_OPTIONS" :key="value" :value="value" :label="ORDER_STATUS_MAP.get(value)?.label ?? String(value)" />
         </el-select>
         <el-button type="primary" @click="search">查询</el-button>
+        <el-tag
+          :type="WS_STATUS_VIEW[wsStatus].tag"
+          size="small"
+          effect="plain"
+          class="ws-status"
+        >{{ WS_STATUS_VIEW[wsStatus].label }}</el-tag>
       </div>
 
       <el-empty v-if="!storeId" description="当前租户暂无门店" />
@@ -298,5 +368,25 @@ onMounted(async () => {
 .spec {
   font-size: 12px;
   color: var(--ts-ink-2);
+}
+
+.ws-status {
+  margin-left: 4px;
+}
+
+/* 平板/触屏（门店平板复用后台，PRD §2.2）：放大字号与触控行高 */
+@media (pointer: coarse) {
+  .store-orders :deep(.el-table) {
+    font-size: 15px;
+    --el-table-row-height: 56px;
+  }
+
+  .store-orders :deep(.el-button) {
+    font-size: 15px;
+  }
+
+  .store-orders :deep(.el-tag) {
+    font-size: 13px;
+  }
 }
 </style>

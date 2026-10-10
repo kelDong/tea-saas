@@ -150,3 +150,23 @@ export interface RefundVO {
   refundTime: string | null
   createTime: string
 }
+
+/**
+ * 订单 WS 推送消息（/ws/orders，接口需求 8.3；仅 R7/R8 订阅名下门店）
+ * 字段口径遵循 SafeLongSerializer：雪花 ID（orderId/storeId，19 位）超
+ * JS 安全整数 → 字符串；tenantId（9001 等）/status/time 为小数值 → number
+ */
+export interface WsOrderMessage {
+  type: 'NEW_ORDER' | 'STATUS_CHANGED'
+  tenantId: number
+  /** 雪花 ID，前端按不透明字符串透传（与 REST /stores 返回的 id 同口径） */
+  storeId: string
+  /** 雪花 ID，前端按不透明字符串透传 */
+  orderId: string
+  orderNo: string
+  /** 1待支付/2已支付/3制作中/4待取餐/5已完成/6已取消/7已退款 */
+  status: number
+  takeCode: string | null
+  /** 服务端毫秒时间戳 */
+  time: number
+}
