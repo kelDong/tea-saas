@@ -1,11 +1,14 @@
 # HANDOFF.md — 交接状态快照
 
-> 写于：M16（微信支付 V3 真实网关代码路径预备：SDK 接入/双模式/回调验签解密/退款受理即完成）。接手者：Claude Code（或其他 AI 工具）。
+> 写于：M18（端到端冒烟测试套件：测试计划权威文档 + tools/smoke API 套件 S1~S8 + admin-web Playwright S9）。接手者：Claude Code（或其他 AI 工具）。
 > 配套入口：`CLAUDE.md`（必读）。
 
 ## 1. Git 位置（tea-saas 仓库）
 
 ```
+e1353a5 test(admin-web): Playwright E2E 资金主干流S9——UI登录(验证码留空+API注入fallback)/收银台现金下单收款/接单页三段流转到已完成/WS实时推送中连接态断言 F-ORD-02 F-ORD-03 F-ORD-04
+c5980ea test(smoke): API级端到端冒烟套件tools/smoke S1~S8——B端POS现金/退款闭环/取消回补/对账日结+C端全链路资产(充值积分券储值)+WS实时推送+权限租户负例；动态查找差值断言+自建可回收(smoke-r8/临时券模板) F-ORD-01~04 F-PAY-01~03 F-MEM-01~03 F-MKT-01 F-APP-01~03
+6f9de94 docs(test): 端到端冒烟测试计划v1.0——S1~S9场景清单/每场景前置步骤断言负例清理/验收口径/维护规则 F-ORD F-PAY F-MEM F-MKT F-APP
 8b385e4 feat(framework+order+payment+admin-web): /ws/orders 门店接单实时推送——framework WS内核(SPI门店解析/afterCommit尽力推送/query token握手R7R8门店隔离)+支付成功NEW_ORDER/流转退款STATUS_CHANGED触发+接单页实时刷新新单提醒连接状态平板CSS F-ORD-03
 d80fc05 feat(pay): 微信支付V3真实网关代码路径——wechatpay-java接入/tea.pay.mock双模式/回调V3验签解密+resultCode失败态分派/退款受理即完成 F-PAY-01 F-PAY-02
 411a0ae fix(mini-program): mock支付回调改裸uni.request——后端按微信网关协议回纯文本SUCCESS(text/plain)，经http()的Result解包会判BizError，收银台toast请求失败(200)且轮询永不启动；改按HTTP 2xx判成功 F-PAY-01
@@ -414,6 +417,28 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 - 单实例单体无 sticky session 问题；若未来横向扩容，WS 内核需换 Redis pub/sub 广播（当前设计未预留，届时重构）
 - 飞书无匹配任务未同步
 
+## 2.21 M18 —— ✅ 端到端冒烟测试套件（2026-10-10，commits 6f9de94 + c5980ea + e1353a5）
+
+**测试场景整理 → 每场景测试计划 → 端到端冒烟实现，三件套入档**（权威口径：`docs/茶饮SaaS-测试计划.md` v1.0，场景 S1~S9）：
+
+| 交付物 | 内容 | commit |
+|---|---|---|
+| `docs/茶饮SaaS-测试计划.md` | S1~S9 场景清单 × 每场景前置/步骤/断言/负例/清理 + 验收口径（SKIP≠FAIL、差值断言原则）+ 维护规则 | 6f9de94 |
+| `tools/smoke/`（Node ≥22 零依赖，11 文件） | **S1** POS 现金全流程（找零/状态机 2→3→4→5/库存扣减）；**S2** 现金+微信退款闭环；**S3** 取消+库存精确归零；**S4** 对账差值（diffCount 不增）+日结差值；**S5** C 端全链路（随机 openid 新会员/公开接口负例/mock 回调纯文本/reorder/取消）；**S6** 资产组合（充值/攒积分/积分抵扣+储值/自建券模板领券核销/组合支付）；**S7** WS 全推送+坏 token/R6 负例；**S8** 权限租户负例（R8 退款 403/无伪 token 401/越权/30101）。统一入口 `node tools/smoke/run-all.mjs [--only=s1,s7]` | c5980ea |
+| `admin-web/e2e/` Playwright | **S9** UI 资金主干流：UI 登录（验证码留空+API 注入 fallback）→ 收银台现金下单收款（捕获 orderNo）→ 接单页三段流转到已完成 → WS「实时推送中」连接态。`npm run test:e2e` | e1353a5 |
+
+**验证结果**：API 套件 8/8 场景 94 断言全绿（含幂等复跑：smoke-r8 复用/券模板复用路径）；E2E 两轮稳定通过。
+
+**接手者须知（实现期踩的坑，脚本注释里也有）**：
+- **ReorderVO 商品字段是 `salePrice` 不是 `price`**；**PayRefund 出参是 `orderId`（雪花字符串）不是 `orderNo`**
+- **"不存在订单"负例的 id 必须小于 Long.MAX**（9.3e18 会 JSON 反序列化溢出 → 999999 系统繁忙而非 30101；用 9.1e18 形态）
+- 演示库事实：**无 R8 账号**（S8 自建 smoke-r8/Smoke2026x，跑完停用、重跑复用）；**券模板全部 status=2**（S6 自建「冒烟临时券-勿用手动停用」满减模板，门槛按运行时单价动态计算 `3件小计-(3件-1件)/2`，跑完停用）
+- Playwright chromium 走 npmmirror：`PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright npx playwright install chromium`
+- UI 登录验证码框出现时留空即可（后端一期不校验）；spec 内置 API 登录+localStorage 注入 fallback 双路径
+- **真实支付切换后**（`tea.pay.mock=false`）S5/S6 支付段与 S2 微信段不适用，须按测试计划 §7.2 更新（当日专项检查清单盯 pay_callback_task 与对账）
+- 冒烟副作用（已声明）：演示库新增订单/退款/流水、随机 openid 会员（`smoke-*`）、停用态券模板、停用账号 smoke-r8；**不修改存量业务数据**
+- 飞书无匹配任务未同步
+
 ## 3. 关键实现事实（接手者容易踩的坑）
 
 1. **@MapperScan**：`MybatisPlusConfig` 上 `@MapperScan(basePackages="com.teasaas", annotationClass=Mapper.class)`——新增模块 mapper 接口记得标 `@Mapper`，否则不注册
@@ -433,10 +458,10 @@ a065809 docs(handoff): 进度快照更新至M3批次4收官（更早 M3 记录�
 1. **二期 backlog 后端补缺**（推荐先做，前端页面已标注缺口）：~~后台会员余额/流水查询接口~~、~~券模板 GET /{id}~~、~~角色-菜单授权回显接口~~（M10 批次A 收口）、~~mkt_coupon_scope 指定商品券~~、~~POS 储值收款会员身份入参~~、~~F-RPT-03 原料消耗趋势~~（M11 批次B 收口；注：M3 批次4 遗留项"F-RPT-03 导出"系当时错记——接口需求 12.3 的 F-RPT-03 实为原料消耗趋势，**报表导出无契约定义仍留 backlog**）、~~微信 V3 验签~~（M16 d80fc05 代码路径收口，待资质）、~~WebSocket /ws/orders~~（M17 8b385e4 收口——store-terminal 方向已拍板方案A：不建独立端，admin-web 补 WS+平板适配，见 §2.20）、报表导出（无契约定义，做前需 Owner 拍板格式与范围）；另 MinIO 生产部署需把 `OSS_ENDPOINT` 指到公网/内网可达地址（**DB 中已存 URL 不会自动迁移**，存量 localhost URL 需刷数据）
 2. ~~**Review 方案 §4 次要项**~~（M12 247a32f 收口：genNo 重试循环、setSql `{0}` 占位风格、balance_after 回读、资金链路集成测试 19 例——测试暴露的钱包 RR 快照与积分锁时序两缺陷已当场修复）
 3. ~~mini-program 初始化~~（M14 两批次收口，devtools 联调口径见 §2.17；后端 mock 支付/公开接口免鉴权配置均已打通）；~~store-terminal~~（M17 拍板方案A 收口：门店端= admin-web 接单页 + WS 实时推送 + 平板 CSS，不建独立端）
-4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15）
+4. ~~端到端冒烟（回归用）~~（M12 已回归全过：R4/R6/R7/R8 按钮可见性 + M9~M11 端到端；回归口径见 §2.15；**M18 起回归统一入口为 `node tools/smoke/run-all.mjs` + `admin-web npm run test:e2e`**，见 §2.21 与 `docs/茶饮SaaS-测试计划.md`）
 5. 提醒 Owner：t100010（种子访谈）/ t100011（微信支付资质）仍在待办——**t100011 下发后补六项 `tea.pay.wx.*` 配置并置 `tea.pay.mock=false` 即切真实网关（M16 代码路径已就绪，见 §2.19 切换步骤）**；登录 wx-login 同期实现 jscode2session 真实分支（当前 code 即 openid，**Owner 已拍板一期先 mock 不预备**）；另 warning 提案色 `#C9982F` 待确认（M6）
 
-> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）、~~微信支付 V3 真实网关代码路径预备：SDK/双模式/回调验签解密/退款受理即完成~~（M16 d80fc05）、~~/ws/orders 门店接单实时推送：WS内核+触发点+接单页实时化+§8.3契约（store-terminal 方案A 收口）~~（M17 8b385e4）
+> 已完成：~~admin-web 视觉收敛~~（M8 d9c881a 收官，23/23 页）、~~端到端冒烟首验~~（M5）、~~管理端订单取消/退款闭环~~（M9 81385ef）、~~二期补缺批次A：后台会员资产/流水+券详情+授权回显~~（M10 3a6be01）、~~二期补缺批次B：指定商品券+POS储值收款+原料消耗趋势~~（M11 9e9e81a）、~~N1 质量收尾：Review§4 四项+并发集成测试19例+全量回归冒烟~~（M12 247a32f）、~~C 端接口补缺：订单详情/再来一单/门店分类，§13 契约全量对齐~~（M13 2a6794a）、~~mini-program C 端小程序初始化：PRD §6.2 全 7 页两批次+mock 支付闭环~~（M14 44d6465/74293b9）、~~mini-program × 后端全链路冒烟回归：mockCallback 真缺陷修复~~（M15 411a0ae）、~~微信支付 V3 真实网关代码路径预备：SDK/双模式/回调验签解密/退款受理即完成~~（M16 d80fc05）、~~/ws/orders 门店接单实时推送：WS内核+触发点+接单页实时化+§8.3契约（store-terminal 方案A 收口）~~（M17 8b385e4）、~~端到端冒烟测试套件：测试计划权威文档+tools/smoke API 套件 S1~S8（8/8 场景）+admin-web Playwright S9~~（M18 6f9de94/c5980ea/e1353a5）
 
 ## 5. 权威文档索引（冲突时以此为准）
 
