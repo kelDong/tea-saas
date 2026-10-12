@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 import { franchiseApi } from '@/api/franchise'
 import { reportApi } from '@/api/report'
@@ -16,12 +16,6 @@ function yesterday(): string {
 const date = ref(yesterday())
 const loading = ref(false)
 const settle = ref<DailySettleVO | null>(null)
-
-/** 现金实收 = 实收 - 微信 - 储值 */
-const cashAmount = computed(() => {
-  if (!settle.value) return 0
-  return Math.max(settle.value.salesAmount - settle.value.wxAmount - settle.value.walletAmount, 0)
-})
 
 async function load() {
   if (!storeId.value) return
@@ -74,7 +68,7 @@ onMounted(async () => {
     </el-card>
 
     <el-card v-if="storeId" shadow="never" class="channel-card">
-      <template #header>分渠道实收（现金 = 营业额 - 微信 - 储值，推导值）</template>
+      <template #header>分渠道实收（微信 + 储值 + 现金 = 营业额）</template>
       <div class="stat-row">
         <div class="stat-card">
           <div class="label">微信</div>
@@ -85,8 +79,8 @@ onMounted(async () => {
           <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
         </div>
         <div class="stat-card">
-          <div class="label">现金（推导）</div>
-          <div class="value">{{ fen2yuan(cashAmount) }}</div>
+          <div class="label">现金</div>
+          <div class="value">{{ fen2yuan(settle?.cashAmount ?? 0) }}</div>
         </div>
       </div>
 

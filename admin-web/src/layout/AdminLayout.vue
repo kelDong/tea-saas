@@ -27,6 +27,17 @@ const breadcrumbs = computed(() =>
 /** 头像占位字：昵称首字（无昵称时用"客"） */
 const avatarText = computed(() => auth.nickname?.trim()?.charAt(0) || '客')
 
+/** 过渡兜底：被遮挡/节流的窗口里 requestAnimationFrame 可能永不触发，
+ *  Vue Transition 的 class 帧推进依赖 rAF，会令 out-in 的 leave 永不结束（表现为点菜单主区不换页）。
+ *  用定时器 done 兜底（setTimeout 不受 rAF 节流影响），可见窗口下 CSS 与定时器先到者生效 */
+function onLeave(_el: Element, done: () => void) {
+  setTimeout(done, 150)
+}
+
+function onEnter(_el: Element, done: () => void) {
+  setTimeout(done, 200)
+}
+
 async function handleLogout() {
   await auth.logout()
   ElMessage.success('已退出登录')
@@ -72,7 +83,7 @@ async function handleLogout() {
 
       <el-main class="admin-main">
         <router-view v-slot="{ Component }">
-          <transition name="page-fade" mode="out-in">
+          <transition name="page-fade" mode="out-in" @leave="onLeave" @enter="onEnter">
             <component :is="Component" />
           </transition>
         </router-view>

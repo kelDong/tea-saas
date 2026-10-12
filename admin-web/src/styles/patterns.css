@@ -175,11 +175,22 @@
   opacity: 0;
   transform: translateY(4px);
 }
+/* leave 类必须显式声明：mode="out-in" 下若旧组件带着全局 transition 样式离场，
+   transitionend 永不触发会卡住后续 enter（表现为点了菜单主区不换页） */
+.page-fade-leave-active {
+  transition: opacity 0.12s ease;
+}
+.page-fade-leave-to {
+  opacity: 0;
+}
 @media (prefers-reduced-motion: reduce) {
   .page-fade-enter-active {
     transition: none;
   }
   .page-fade-enter-from {
     transform: none;
+  }
+  .page-fade-leave-active {
+    transition: none;
   }
 }

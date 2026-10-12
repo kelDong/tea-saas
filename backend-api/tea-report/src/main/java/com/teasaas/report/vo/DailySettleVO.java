@@ -40,4 +40,7 @@ public class DailySettleVO implements Serializable {
 
     @Schema(description = "储值实收(分)")
     private Long walletAmount;
+
+    @Schema(description = "现金实收(分)，pay_channel=3")
+    private Long cashAmount;
 }

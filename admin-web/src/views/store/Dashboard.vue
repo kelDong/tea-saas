@@ -124,6 +124,10 @@ onMounted(async () => {
           <div class="label">储值实收</div>
           <div class="value">{{ fen2yuan(settle?.walletAmount ?? 0) }}</div>
         </div>
+        <div class="stat-card">
+          <div class="label">现金实收</div>
+          <div class="value">{{ fen2yuan(settle?.cashAmount ?? 0) }}</div>
+        </div>
       </div>
     </el-card>
 

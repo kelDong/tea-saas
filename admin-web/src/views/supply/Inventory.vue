@@ -15,6 +15,9 @@ import { formatDateTime } from '@/utils/format'
 // ---------- 基础下拉 ----------
 const stores = ref<Array<{ id: number; storeName: string }>>([])
 const materials = ref<BomMaterial[]>([])
+
+// 受控 tab（无 v-model 时非受控状态与懒加载联动不可靠）
+const activeTab = ref('ledger')
 const storeNameMap = computed(() => new Map(stores.value.map((item) => [item.id, item.storeName])))
 const materialMap = computed(() => new Map(materials.value.map((item) => [item.id, item.materialName])))
 
@@ -191,7 +194,7 @@ onMounted(async () => {
 
 <template>
   <div class="inventory-page">
-    <el-tabs @tab-change="onTabChange">
+    <el-tabs v-model="activeTab" @tab-change="onTabChange">
       <el-tab-pane label="库存台账" name="ledger">
         <el-card shadow="never">
           <div class="page-toolbar">

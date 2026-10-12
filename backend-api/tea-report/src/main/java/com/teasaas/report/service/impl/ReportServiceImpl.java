@@ -97,6 +97,7 @@ public class ReportServiceImpl implements ReportService {
             vo.setRefundAmount(0L);
             vo.setWxAmount(0L);
             vo.setWalletAmount(0L);
+            vo.setCashAmount(0L);
         }
         vo.setDate(day.toString());
         vo.setStoreId(storeId);

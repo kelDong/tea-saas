@@ -35,12 +35,14 @@
                     THEN ROUND(t.salesAmount / t.orderCount) ELSE 0 END AS avgOrderAmount,
                t.wxAmount,
                t.walletAmount,
+               t.cashAmount,
                IFNULL(r.refundCount, 0) AS refundCount,
                IFNULL(r.refundAmount, 0) AS refundAmount
           FROM (SELECT COUNT(*) AS orderCount,
                        IFNULL(SUM(o.pay_amount), 0) AS salesAmount,
                        IFNULL(SUM(CASE WHEN o.pay_channel = 1 THEN o.pay_amount ELSE 0 END), 0) AS wxAmount,
-                       IFNULL(SUM(CASE WHEN o.pay_channel = 2 THEN o.pay_amount ELSE 0 END), 0) AS walletAmount
+                       IFNULL(SUM(CASE WHEN o.pay_channel = 2 THEN o.pay_amount ELSE 0 END), 0) AS walletAmount,
+                       IFNULL(SUM(CASE WHEN o.pay_channel = 3 THEN o.pay_amount ELSE 0 END), 0) AS cashAmount
                   FROM ord_order o
                  WHERE o.store_id = #{storeId}
                    AND <include refid="salesCondition"/>) t

@@ -34,6 +34,8 @@ export interface DailySettleVO {
   wxAmount: number
   /** 储值实收，分 */
   walletAmount: number
+  /** 现金实收，分（pay_channel=3） */
+  cashAmount: number
 }
 
 /** 品牌工作台指标 */
