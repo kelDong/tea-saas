@@ -20,6 +20,11 @@ logs/
 .DS_Store
 Thumbs.db
 
+# ===== 部署构建产物（deploy/build.ps1 生成，勿入库） =====
+deploy/build/
+deploy/sql/
+deploy/.env
+
 # ===== Java =====
 target/
 *.class

@@ -1,0 +1,156 @@
+# tea-saas 生产编排（本机演练与云服务器同套文件）
+# 五服务：web(nginx: 静态+反代) / backend / mysql / redis / minio
+# 对外仅暴露 ${NGINX_PORT}（默认 8090）；mysql/redis/minio 不映射宿主端口
+# 容器名 prod-* 前缀，与 dev 环境（tea-*）完全隔离
+name: tea-saas-prod
+
+services:
+  # ---------- 对外唯一入口：SPA 静态 + API/WS/OSS 反代 ----------
+  web:
+    build:
+      context: ./build/web
+      dockerfile: Dockerfile
+    image: tea-saas/web:latest
+    container_name: prod-web
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8090}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - tea-net
+
+  # ---------- Spring Boot 后端 ----------
+  backend:
+    build:
+      context: ./build/backend
+      dockerfile: Dockerfile
+    image: tea-saas/backend:latest
+    container_name: prod-backend
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DB: ${MYSQL_DB:-tea_saas}
+      MYSQL_USER: ${MYSQL_USER:-tea}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 deploy/.env 填写 MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 deploy/.env 填写 REDIS_PASSWORD}
+      # SDK 内部直连 minio（SigV4 签名要求，勿走反代）；对外 URL 由 OSS_PUBLIC_ENDPOINT 拼接
+      OSS_ENDPOINT: http://minio:9000
+      OSS_PUBLIC_ENDPOINT: ${OSS_PUBLIC_ENDPOINT:-}
+      OSS_ACCESS_KEY: ${OSS_ACCESS_KEY:?请在 deploy/.env 填写 OSS_ACCESS_KEY}
+      OSS_SECRET_KEY: ${OSS_SECRET_KEY:?请在 deploy/.env 填写 OSS_SECRET_KEY}
+      OSS_BUCKET: ${OSS_BUCKET:-tea-saas}
+      # 首启 admin 密码初始化（AdminPasswordInitRunner：DB 中占位哈希被替换后可移除此项）
+      TEA_ADMIN_PASSWORD: ${TEA_ADMIN_PASSWORD:-}
+      TZ: Asia/Shanghai
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m}
+    healthcheck:
+      # 免登录端点；镜像内 busybox wget
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/auth/captcha"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    networks:
+      - tea-net
+
+  # ---------- MySQL 8.4（与 dev 同版本）----------
+  mysql:
+    image: mysql:8.4
+    container_name: prod-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 deploy/.env 填写 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB:-tea_saas}
+      MYSQL_USER: ${MYSQL_USER:-tea}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 deploy/.env 填写 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次初始化执行（数据卷为空时）；由 deploy/build.ps1 从 backend-api/sql/init 复制生成（勿手改）。
+      # 库由 MYSQL_DATABASE 自动创建，entrypoint 自动选中该库执行脚本，SQL 内无需 CREATE DATABASE
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    networks:
+      - tea-net
+
+  # ---------- Redis（Sa-Token 会话 / 业务缓存）----------
+  redis:
+    image: redis:7-alpine
+    container_name: prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?请在 deploy/.env 填写 REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    networks:
+      - tea-net
+
+  # ---------- MinIO 对象存储（桶与匿名只读策略由后端 MinioConfig 启动自愈）----------
+  minio:
+    image: minio/minio:latest
+    container_name: prod-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${OSS_ACCESS_KEY:?请在 deploy/.env 填写 OSS_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${OSS_SECRET_KEY:?请在 deploy/.env 填写 OSS_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "3" }
+    networks:
+      - tea-net
+
+networks:
+  tea-net:
+    name: tea-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:

@@ -64,7 +64,9 @@ tea:
     member-token-ttl-days: 7
   oss:
     # MinIO 对象存储（本地复用既有 minio 容器：9000 API / 9001 控制台，默认 minioadmin/minioadmin）
+    # endpoint=SDK 内部寻址（勿经反代，SigV4 签名要求直连）；public-endpoint=拼给浏览器的 URL 基地址
     endpoint: ${OSS_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${OSS_PUBLIC_ENDPOINT:}
     access-key: ${OSS_ACCESS_KEY:minioadmin}
     secret-key: ${OSS_SECRET_KEY:minioadmin}
     bucket-name: ${OSS_BUCKET:tea-saas}

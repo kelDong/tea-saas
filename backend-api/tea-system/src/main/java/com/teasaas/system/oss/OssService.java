@@ -66,7 +66,17 @@ public class OssService {
             log.error("MinIO putObject failed, objectKey={}", objectKey, e);
             throw new BizException(ErrorCode.FILE_UPLOAD_FAIL);
         }
-        return ossProperties.getEndpoint() + "/" + ossProperties.getBucketName() + "/" + objectKey;
+        return publicBaseUrl() + "/" + ossProperties.getBucketName() + "/" + objectKey;
+    }
+
+    /** 对外 URL 基地址：publicEndpoint 非空优先（浏览器可达的反代地址），否则回落 endpoint */
+    private String publicBaseUrl() {
+        String pub = ossProperties.getPublicEndpoint();
+        if (pub != null && !pub.isBlank()) {
+            // 去掉误配的尾斜杠，避免拼出 //bucket
+            return pub.endsWith("/") ? pub.substring(0, pub.length() - 1) : pub;
+        }
+        return ossProperties.getEndpoint();
     }
 
     private String resolveExtension(String originalFilename) {
