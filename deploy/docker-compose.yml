@@ -16,7 +16,8 @@ services:
     ports:
       - "${NGINX_PORT:-8090}:80"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      # 用 127.0.0.1 勿用 localhost：busybox wget 会解析为 ::1，而 nginx 仅 listen 80(IPv4)
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 15s
       timeout: 5s
       retries: 3
