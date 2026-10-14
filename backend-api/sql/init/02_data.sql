@@ -3,6 +3,9 @@
 -- 依据：数据库设计 v1.1 第 15.2 节 + PRD 5.2/5.3 权限矩阵
 -- 幂等：先 DELETE 后 INSERT
 -- =============================================================
+-- 必须显式 SET NAMES：docker mysql entrypoint 对每个 .sql 用独立连接执行，
+-- 客户端默认 charset=latin1，缺此行则 UTF-8 中文按 latin1 双重编码落库（2026-10-14 prod 实测）
+SET NAMES utf8mb4;
 USE `tea_saas`;
 
 -- ---------- 套餐三档（P1-4 决策） ----------
